@@ -41,10 +41,10 @@ int ctxLogInit(void) {
         }
         unlockError = pthread_mutex_unlock(&ctxCursorLock);
         if (unlockError != 0) {
-            ERROR_MSG("pthread_mutex_unlock ctxCursorLock error (%m)",unlockError);
+            ERROR_MSG("pthread_mutex_unlock ctxCursorLock error %d (%s)",unlockError,strerror(unlockError));
         }
     } else {
-        ERROR_MSG("pthread_mutex_lock memLogLock error (%m)",error);
+        ERROR_MSG("pthread_mutex_lock memLogLock error %d (%s)",error,strerror(error));
     }
 
     return error;
@@ -59,10 +59,10 @@ void ctxLogUnInit(void) {
 	}
         error = pthread_mutex_unlock(&ctxCursorLock);
         if (error != 0) {
-            ERROR_MSG("pthread_mutex_unlock ctxCursorLock error (%m)",error);
+            ERROR_MSG("pthread_mutex_unlock ctxCursorLock error %d (%s)",error,strerror(error));
         }
     } else {
-        ERROR_MSG("pthread_mutex_lock memLogLock error (%m)",error);
+        ERROR_MSG("pthread_mutex_lock memLogLock error %d (%s)",error,strerror(error));
     }
 }
 
@@ -91,7 +91,7 @@ void ctxLogger(int priority, const char *format, ...) {
         } 
         const int unlockError = pthread_mutex_unlock(&ctxCursorLock); 
         if (unlockError != EXIT_SUCCESS) { 
-            ERROR_MSG("pthread_mutex_unlock ctxCursorLock error (%m)",unlockError); 
+            ERROR_MSG("pthread_mutex_unlock ctxCursorLock error %d (%s)",unlockError,strerror(unlockError));
         } 
         va_start(optional_arguments, format);
         n = vsnprintf(writePosition,CTX_LOGGER_MAX_LINE_SIZE,format, optional_arguments) + strlen(DEBUG_EOL); 
@@ -99,7 +99,7 @@ void ctxLogger(int priority, const char *format, ...) {
         writePosition[CTX_LOGGER_MAX_LINE_SIZE-1] = '\0'; 
         va_end(optional_arguments);
     } else { 
-        ERROR_MSG("pthread_mutex_lock ctxCursorLock error (%m)",lockError); 
+        ERROR_MSG("pthread_mutex_lock ctxCursorLock error %d (%s)",lockError,strerror(lockError));
     }
     /*return n;*/
 }

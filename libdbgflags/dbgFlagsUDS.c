@@ -32,7 +32,7 @@ copyright            : (C) 2010 by OC
 #include <netdb.h>
 
 static void *UDSTCPServer(void* parameter);
-void FreeAllocatedResources(void);
+static void FreeAllocatedResources(void);
 
 #include <dbgflags/dbgflags.h>
 #include "debug.h"
@@ -45,6 +45,7 @@ void FreeAllocatedResources(void);
 #include "UdsServerManagement.h"
 #include "LibrariesNameBuffer.h"
 #include "RemoteStatus.h"
+
 /*
 * comparators
 */
@@ -139,7 +140,8 @@ static __inline int sendDebugFlags(int connected_socket,DbgFlagsCommand *dbgFlag
     */
     error = receiveBuffer(connected_socket,&dbgFlagsCommand->param.getCmd,sizeof(ClientParametersGetCmd),NULL);
     if (EXIT_SUCCESS == error) {
-        DebugFlags *dbgFlags = findDebugFlags(dbgFlagsCommand->param.getCmd.moduleName);
+        interfaceVersion version = 1.0;
+        DebugFlags *dbgFlags = findDebugFlags(dbgFlagsCommand->param.getCmd.moduleName,&version);
         DEBUG_VAR(dbgFlagsCommand->param.getCmd.moduleName,"%s");
         DEBUG_VAR(dbgFlags,"0x%X");
         if (dbgFlags != NULL) {
@@ -150,14 +152,14 @@ static __inline int sendDebugFlags(int connected_socket,DbgFlagsCommand *dbgFlag
 
             error = sendBuffer(connected_socket,&fullDbgFlags,sizeof(FulldebugFlags),NULL);
             if (error != EXIT_SUCCESS) {
-                ERROR_MSG("sendDebugFlags send error (%m)",error);
+                ERROR_MSG("sendDebugFlags send error %d (%m)",error);
             }
         } else { /* module not found */
             NOTICE_MSG("module %s not found",dbgFlagsCommand->param.getCmd.moduleName);
             error = ENOENT;
         }
     } else {
-        ERROR_MSG("receiveBuffer ClientParametersGetCmd error (%m)",error);
+        ERROR_MSG("receiveBuffer ClientParametersGetCmd error %d (%m)",error);
     }
 
     return error;
@@ -200,7 +202,7 @@ static __inline int sendLibrariesNames(int connected_socket,DbgFlagsCommand *dbg
                     LibrariesNameBufferAddChar(&namesBuffer,'\0'); /* add an extra null character to the end of the list to signal its end */
                     error = sendBuffer(connected_socket,namesBuffer.buffer,namesBuffer.usedSize,NULL);
                     if (error != EXIT_SUCCESS) {
-                        ERROR_MSG("sendLibrariesNames send error (%m)",error);
+                        ERROR_MSG("sendLibrariesNames send error %d (%m)",error);
                     }
                 } else {
                     ERROR_MSG("LibraryDebugFlagsEntryForEach error %d",error);
@@ -224,7 +226,8 @@ static __inline int receiveNewFlagsValues(int connected_socket,DbgFlagsCommand *
     */
     int error =  receiveBuffer(connected_socket,&dbgFlagsCommand->param.setCmd,sizeof(ClientParametersSetCmd),NULL);
     if (EXIT_SUCCESS == error) {
-        DebugFlags *moduleDbgFlag = findDebugFlags(dbgFlagsCommand->param.setCmd.moduleName);
+        interfaceVersion version = 1.0;
+        DebugFlags *moduleDbgFlag = findDebugFlags(dbgFlagsCommand->param.setCmd.moduleName,&version);
         DEBUG_VAR(dbgFlagsCommand->param.setCmd.moduleName,"%s");
         DEBUG_VAR(moduleDbgFlag,"0x%X");
         if (moduleDbgFlag != NULL) {
@@ -247,12 +250,95 @@ static __inline int receiveNewFlagsValues(int connected_socket,DbgFlagsCommand *
             error = ENOENT;
         }        
     } else {
-        ERROR_MSG("receiveBuffer ClientParametersSetCmd error (%m)",error);
+        ERROR_MSG("receiveBuffer ClientParametersSetCmd error %d (%m)",error);
     }    
     return error;
 }
 
-#ifdef DEBUG
+static __inline int buildArgvParameter(char *cmd,char *argv[]) {
+    int argc = 0;
+    register char *currentPos = cmd;
+    register char *startPtr = cmd;
+    while (*currentPos != '\0') {
+        if (' ' == *currentPos) {
+            *currentPos = '\0';
+            currentPos++;
+            argv[argc++] = startPtr;
+            while ((' ' == *currentPos) && (*currentPos != '\0')) {
+                *currentPos = '\0';
+                currentPos++;
+            }
+            startPtr = currentPos;
+        } else {
+            currentPos++;
+        }
+    }
+
+    if (*startPtr != '\0') {
+        argv[argc++] = startPtr;
+    }
+    return argc;
+}
+
+static __inline int sendCustomCommandOutput(int connected_socket,DbgFlagsCommand *dbgFlagsCommand) {
+    /*
+    * read the custom command to run
+    */
+    int error =  receiveBuffer(connected_socket,&dbgFlagsCommand->param.customCmd,sizeof(ClientParametersCustomCmd),NULL);
+    if (EXIT_SUCCESS == error) {
+        /* first look for the right DbgFlags struct to get its custom command handler */
+        interfaceVersion version = 1.0;
+        DebugFlags *dbgFlags = findDebugFlags(dbgFlagsCommand->param.customCmd.moduleName,&version);
+        DEBUG_VAR(dbgFlagsCommand->param.customCmd.moduleName,"%s");
+        DEBUG_VAR(dbgFlags,"0x%X");
+        DEBUG_VAR(version,"%f");
+        if  ((dbgFlags != NULL) && (version >= 1.1)){
+            /* then build the custom command's data for the handler */
+            char *argv[10];
+            int argc = buildArgvParameter(dbgFlagsCommand->param.customCmd.customCommand,argv);
+            /* then create a stream for the handlers */
+            int fd = dup(connected_socket); /* else the fclose call will close the file descriptor */
+            if (fd != -1) {
+                FILE *outputStream = fdopen(fd,"w");
+                if (outputStream != NULL) {
+                    /* then check if the command to run is the help special cmd */
+                    if (strncasecmp(dbgFlagsCommand->param.customCmd.customCommand,"help",5) != 0) {
+                        if (dbgFlags->customCommands.customCmdHandler  != NULL) {
+                            error = (*dbgFlags->customCommands.customCmdHandler)(argc,argv,outputStream);
+                        } else {
+                            error = EINVAL;
+                        }
+                    } else {
+                        if (dbgFlags->customCommands.customHelpCmd != NULL) {
+                            (*dbgFlags->customCommands.customHelpCmd)(outputStream);
+                        } else {
+                            error = EINVAL;
+                        }
+                    }
+
+                    if (fclose(outputStream) != 0) {
+                        const int closeError = errno;
+                        ERROR_MSG("fclose outputStream error %d (%m)",closeError);
+                    }
+                } else {
+                    error = errno;
+                    ERROR_MSG("fdopen error %d (%m)",error);
+                }
+            } else {
+                error = errno;
+                ERROR_MSG("dup error %d (%m)",error);
+            }
+        } else { /* module not found */
+            NOTICE_MSG("module %s not found",dbgFlagsCommand->param.customCmd.moduleName);
+            error = ENOENT;
+        }
+    } else {
+        ERROR_MSG("receiveBuffer ClientParametersCustomCmd error %d (%m)",error);
+    }
+    return error;
+}
+
+#ifdef _DEBUG_
 static __inline const char* DbgFlagsSrvCommands2String(const DbgFlagsSrvCommands cmd) {
     const char* szCmd = "";
     switch(cmd) {
@@ -269,7 +355,7 @@ static __inline const char* DbgFlagsSrvCommands2String(const DbgFlagsSrvCommands
     }
     return szCmd;
 }
-#endif /* DEBUG */
+#endif /* _DEBUG_ */
 
 static void *UDSTCPServer(void* parameter) {
     int error = EXIT_SUCCESS;
@@ -302,11 +388,11 @@ static void *UDSTCPServer(void* parameter) {
                             /* read the cmd Header */
                             n = recv(connected_socket,&dbgFlagsCommand.header,sizeof(DbgFlagsCommandHeader),0);
                             if (n != -1) {
-#if defined(DEBUG)
+#if defined(_DEBUG_)
                                 const char *Command = DbgFlagsSrvCommands2String(dbgFlagsCommand.header.command);
                                 DEBUG_VAR(dbgFlagsCommand.header.version,"%d");
                                 DEBUG_VAR(Command,"%s");
-#endif /* DEBUG*/
+#endif /* _DEBUG_*/
                                 if (0 == dbgFlagsCommand.header.version) {
                                     switch(dbgFlagsCommand.header.command)
                                     {
@@ -320,11 +406,11 @@ static void *UDSTCPServer(void* parameter) {
                                         error = sendLibrariesNames(connected_socket,&dbgFlagsCommand);
                                         break;
                                     case eCustomCmd:
+                                        error = sendCustomCommandOutput(connected_socket,&dbgFlagsCommand);
                                         break;
                                     default:
                                         error = EINVAL;
                                         NOTICE_MSG("unknown command %d",dbgFlagsCommand.header.command);
-
                                     } /* switch(dbgFlagsCommand.header.command)*/
 
                                     /* try to send back an error status in case of error */
@@ -340,13 +426,13 @@ static void *UDSTCPServer(void* parameter) {
                                 }
                             } else { /* recv( == -1 */
                                 /*error = n;*/
-                                ERROR_MSG("recv error (%m)",n);
+                                ERROR_MSG("recv error %d (%m)",n);
                             }
                             close(connected_socket);
                             connected_socket = -1;
                         } else { /* connected_socket == -1 */
                             error = errno;
-                            ERROR_MSG("accept error (%m)",error);
+                            ERROR_MSG("accept error %d (%m)",error);
                         }
                     } while(EXIT_SUCCESS == error); /* TODO: complete*/
                     DEBUG_VAR(error,"%d");
@@ -355,12 +441,12 @@ static void *UDSTCPServer(void* parameter) {
                     return NULL;
                 } else { /* listen(uds_srv_socket,5) == -1 */
                     error = errno;
-                    ERROR_MSG("listen error (%m)",error);
+                    ERROR_MSG("listen error %d (%m)",error);
                 }
             } else {
                 error = errno;
                 umask(currentCreationMask);
-                ERROR_MSG("bind error (%m)",error);
+                ERROR_MSG("bind error %d (%m)",error);
             }
             close(dbgFlags->server.uds_srv_socket);
             dbgFlags->server.uds_srv_socket = -1;
@@ -368,35 +454,36 @@ static void *UDSTCPServer(void* parameter) {
         /* error already printed */
     } else { /* (uds_srv_socket != -1) */
         error = errno;
-        ERROR_MSG("socket error (%m)",error);
+        ERROR_MSG("socket error %d (%m)",error);
     }
     dbgFlags->server.processID = dbgFlags->server.thread = 0; /* thread ended */
     return NULL;
 }
 
 
-int registerDebugFlags(const DebugFlags *dbgFlags) {
+static inline int registerDebugFlagsEx(const DebugFlags *dbgFlags,const interfaceVersion version) {
     int error = pthread_mutex_lock(&g_dbgFlags.mutex);
     if (0 == error) {
         int mutexError;
         g_dbgFlags.process = (DebugFlags *)dbgFlags;
+        g_dbgFlags.processInterfaceVersion = version;
         error = initUDSTCPServer(&g_dbgFlags); /* error already printed */
-        INFO_MSG("process %s registered with error (%m)",dbgFlags->moduleName,error); /*deadlock !!! => logger call may registerLibraryDebugFlags but the mutex is not already released ! */
+        INFO_MSG("process %s registered with error %d (%m)",dbgFlags->moduleName,error); /*deadlock !!! => logger call may registerLibraryDebugFlags but the mutex is not already released ! */
         mutexError = pthread_mutex_unlock(&g_dbgFlags.mutex);
         if (mutexError != 0) {
-            ERROR_MSG("pthread_mutex_unlock dbgFlags.mutex error (%m)",mutexError);
+            ERROR_MSG("pthread_mutex_unlock dbgFlags.mutex error %d (%m)",mutexError);
             if (EXIT_SUCCESS == error) {
                 error = mutexError;
             }
         }
         dumpProcDebugFlagsEntry(&g_dbgFlags);
     } else {
-        ERROR_MSG("pthread_mutex_lock dbgFlags.mutex error (%m)",error);
+        ERROR_MSG("pthread_mutex_lock dbgFlags.mutex error %d (%m)",error);
     }
     return error;
 }
 
-int registerLibraryDebugFlags(const DebugFlags *dbgFlags) {
+static inline int registerLibraryDebugFlagsEx(const DebugFlags *dbgFlags,const interfaceVersion version) {
     int error = EXIT_SUCCESS;
     if (dbgFlags != NULL) {
         LibraryDebugFlagsEntry *libDbgFlags = LibraryDebugFlagsEntryFind(g_dbgFlags.libraries,dbgFlags->moduleName);
@@ -405,8 +492,8 @@ int registerLibraryDebugFlags(const DebugFlags *dbgFlags) {
             int mutexError;
             error = initUDSTCPServer(&g_dbgFlags);
             if (NULL == libDbgFlags) { /* new entry */
-                const int insertError = LibraryDebugFlagsEntryAdd(&g_dbgFlags.libraries,(DebugFlags *)dbgFlags);
-                INFO_MSG("library %s registered with error (%m)",dbgFlags->moduleName,insertError);
+                const int insertError = LibraryDebugFlagsEntryAdd(&g_dbgFlags.libraries,(DebugFlags *)dbgFlags,version);
+                INFO_MSG("library %s registered with error %d (%m)",dbgFlags->moduleName,insertError);
                 DEBUG_VAR(g_dbgFlags.libraries,"0x%X");
                 if (EXIT_SUCCESS == error) {
                     error = insertError;
@@ -418,13 +505,13 @@ int registerLibraryDebugFlags(const DebugFlags *dbgFlags) {
             }
             mutexError = pthread_mutex_unlock(&g_dbgFlags.mutex);
             if (mutexError != 0) {
-                ERROR_MSG("pthread_mutex_unlock dbgFlags.mutex error (%m)",mutexError);
+                ERROR_MSG("pthread_mutex_unlock dbgFlags.mutex error %d (%m)",mutexError);
                 if (EXIT_SUCCESS == error) {
                     error = mutexError;
                 }
             }
         } else { /* pthread_mutex_lock != EXIT_SUCCESS */
-            ERROR_MSG("pthread_mutex_lock dbgFlags.mutex error (%m)",error);
+            ERROR_MSG("pthread_mutex_lock dbgFlags.mutex error %d (%m)",error);
         }
     } else {
         error = EINVAL;
@@ -432,6 +519,46 @@ int registerLibraryDebugFlags(const DebugFlags *dbgFlags) {
     }
     return error;
 }
+
+/*
+ * int registerDebugFlags(const DebugFlags *dbgFlags);
+ */
+int registerDebugFlags_1_0(const DebugFlags *dbgFlags) {
+    return registerDebugFlagsEx(dbgFlags,1.0);
+}
+#if defined(__pic__) || defined(__PIC__) || defined(PIC)
+asm(".symver registerDebugFlags_1_0,registerDebugFlags@VERS_1.0");
+#endif  /* defined(__pic__) || defined(__PIC__) || defined(PIC) */
+
+int registerDebugFlags_1_1(const DebugFlags *dbgFlags) {
+    return registerDebugFlagsEx(dbgFlags,1.1);
+}
+#if defined(__pic__) || defined(__PIC__) || defined(PIC)
+asm(".symver registerDebugFlags_1_1,registerDebugFlags@@VERS_1.1");
+#else /* defined(__pic__) || defined(__PIC__) || defined(PIC) */
+extern registerDebugFlags(const DebugFlags *dbgFlags) __attribute((alias("registerDebugFlags_1_1")));
+#endif  /* defined(__pic__) || defined(__PIC__) || defined(PIC) */
+
+/*
+ * int registerLibraryDebugFlags(const DebugFlags *dbgFlags);
+ */
+int registerLibraryDebugFlags_1_0(const DebugFlags *dbgFlags) {
+    return registerLibraryDebugFlagsEx(dbgFlags,1.0);
+}
+#if defined(__pic__) || defined(__PIC__) || defined(PIC)
+asm(".symver registerLibraryDebugFlags_1_0,registerLibraryDebugFlags@VERS_1.0");
+#endif  /* defined(__pic__) || defined(__PIC__) || defined(PIC) */
+
+
+int registerLibraryDebugFlags_1_1(const DebugFlags *dbgFlags) {
+    return registerLibraryDebugFlagsEx(dbgFlags,1.1);
+}
+#if defined(__pic__) || defined(__PIC__) || defined(PIC)
+asm(".symver registerLibraryDebugFlags_1_1,registerLibraryDebugFlags@@VERS_1.1");
+#else /* defined(__pic__) || defined(__PIC__) || defined(PIC) */
+extern registerLibraryDebugFlags(const DebugFlags *dbgFlags) __attribute((alias("registerLibraryDebugFlags_1_1")));
+#endif  /* defined(__pic__) || defined(__PIC__) || defined(PIC) */
+
 
 int unregisterDebugFlags(const DebugFlags *dbgFlags) {
     int error = EXIT_SUCCESS;
@@ -443,18 +570,18 @@ int unregisterDebugFlags(const DebugFlags *dbgFlags) {
                 g_dbgFlags.process = NULL;
             } else {
                 error = LibraryDebugFlagsEntryRemoveByName(&g_dbgFlags.libraries,dbgFlags->moduleName);
-                INFO_MSG("%s unregistered with error (%m)",dbgFlags->moduleName,error);
+                INFO_MSG("%s unregistered with error %d (%m)",dbgFlags->moduleName,error);
             }
             dumpProcDebugFlagsEntry(&g_dbgFlags);
             mutexError = pthread_mutex_unlock(&g_dbgFlags.mutex);
             if (mutexError != 0) {
-                ERROR_MSG("pthread_mutex_unlock dbgFlags.mutex error (%m)",mutexError);
+                ERROR_MSG("pthread_mutex_unlock dbgFlags.mutex error %d (%m)",mutexError);
                 if (EXIT_SUCCESS == error) {
                     error = mutexError;
                 }
             }
         } else { /* pthread_mutex_lock */
-            ERROR_MSG("pthread_mutex_lock dbgFlags.mutex error (%m)",error);
+            ERROR_MSG("pthread_mutex_lock dbgFlags.mutex error %d (%m)",error);
         }
     } else {
         error = EINVAL;
@@ -521,12 +648,12 @@ static __inline int getPID(const char *name, pid_t *PIDS,unsigned int *nbPIDS) {
 
         if (closedir(userRootDir) == -1 ) {
             error = errno;
-            ERROR_MSG("closedir %s error (%m)",userRootDirName,error);
+            ERROR_MSG("closedir %s error %d (%m)",userRootDirName,error);
         }
         userRootDir = NULL;
     } else {
         error = errno;
-        ERROR_MSG("opendir %s error (%m)",userRootDirName,error);
+        ERROR_MSG("opendir %s error %d (%m)",userRootDirName,error);
     }
 
     return error;
@@ -535,11 +662,9 @@ static __inline int getPID(const char *name, pid_t *PIDS,unsigned int *nbPIDS) {
 /*
 *
 */
-
-int listPIDS(const char *pattern,comparator comp,unsigned int displayFullName) {
+int listPIDSEx(const uid_t userID,const char *pattern, comparator comp, unsigned int displayFullName) {
     int error = EXIT_SUCCESS;
-    char userRootDirName[PATH_MAX];
-    const uid_t userID = getuid();
+    char userRootDirName[PATH_MAX];    
     DIR *userRootDir = NULL;
 
     sprintf(userRootDirName,"/tmp/dbgFlags_%d",userID);
@@ -579,6 +704,13 @@ int listPIDS(const char *pattern,comparator comp,unsigned int displayFullName) {
                                 }
                             } else { /* (pid == 0) */
                                 DEBUG_MSG("false positive: %s against %s but pid not found",directoryEntry->d_name,pattern);
+                                DEBUG_VAR(directoryEntry->d_type,"%d");
+                                if (DT_SOCK == directoryEntry->d_type) {
+                                     if (unlink(directoryEntry->d_name) != 0) {
+                                        const int unlink_error = errno;
+                                        INFO_MSG("unlink %s error %d (%m)",directoryEntry->d_name,unlink_error);
+                                    }   
+                                } /* (DT_SOCK == directoryEntry->d_type) */
                             }
                         } else { /* (matchingDirEntName == NULL) */
                             DEBUG_MSG("false positive: %s against %s but character _ is not found",directoryEntry->d_name,pattern);
@@ -596,14 +728,19 @@ int listPIDS(const char *pattern,comparator comp,unsigned int displayFullName) {
 
         if (closedir(userRootDir) == -1 ) {
             error = errno;
-            ERROR_MSG("closedir %s error (%m)",userRootDirName,error);
+            ERROR_MSG("closedir %s error %d (%m)",userRootDirName,error);
         }
         userRootDir = NULL;
     } else {
         error = errno;
-        ERROR_MSG("opendir %s error (%m)",userRootDirName,error);
+        ERROR_MSG("opendir %s error %d (%m)",userRootDirName,error);
     }
     return error;
+}
+
+int listPIDS(const char *pattern,comparator comp,unsigned int displayFullName) {
+    const uid_t userID = getuid();
+    return listPIDSEx(userID,pattern,comp,displayFullName);
 }
 
 #define displayLevel(stream,level,mask,string) if (level == (mask & level)) fprintf(stream,string " ")
@@ -765,17 +902,13 @@ static __inline int readLibrariesNames(int connected_socket,DbgFlagsCommand *cmd
                             displayLibrariesNames(stdout,buffer,bytesReceived);
                         } else {
                             error = getRemoteStatus(buffer);
-                            ERROR_MSG("remote error %m",error);
+                            ERROR_MSG("remote error %d (%s)",error,strerror(error));
                         }
                         break;
                     default:
-                        ERROR_MSG("receiveBuffer LibrariesNames error (%m)",error);                            
+                        ERROR_MSG("receiveBuffer LibrariesNames error %d (%s)",error,strerror(error));
                     } /* switch(error) */
-                } while(EXIT_SUCCESS == error);
-
-                if (EPIPE == error) {
-                    error = EXIT_SUCCESS;
-                }
+                } while(EXIT_SUCCESS == error);                
 
                 free(buffer);
                 buffer = NULL;
@@ -785,12 +918,12 @@ static __inline int readLibrariesNames(int connected_socket,DbgFlagsCommand *cmd
             }
         /*} else {
             error = errno;
-            ERROR_MSG("sendBuffer ClientParametersLsLibs error (%m)",error);                            
+            ERROR_MSG("sendBuffer ClientParametersLsLibs error %d (%m)",error);
         }*/
 
     } else {
         error = errno;
-        ERROR_MSG("sendBuffer DbgFlagsCommandHeader error (%m)",error);                            
+        ERROR_MSG("sendBuffer DbgFlagsCommandHeader error %d (%m)",error);
     }
 
     return error;
@@ -822,18 +955,18 @@ static __inline int readDebugFlag(int connected_socket,DbgFlagsCommand *cmd) {
                 const unsigned char* buffer = (unsigned char*)&fullDbgFlag;
                 if ((EPIPE == error) && (isRemoteStatus(buffer,bytesReceived))) {                    
                     error = getRemoteStatus(buffer);
-                    DEBUG_MSG("remote error (%m)",error);                      
+                    DEBUG_MSG("remote error %d (%m)",error);
                 } else {
-                    ERROR_MSG("receiveBuffer FulldebugFlags error (%m)",error); 
+                    ERROR_MSG("receiveBuffer FulldebugFlags error %d (%m)",error);
                 }                                               
             }
         } else { /* sendBuffer ClientParametersGetCmd */            
             error = errno;
-            ERROR_MSG("sendBuffer ClientParametersGetCmd error (%m)",error);                            
+            ERROR_MSG("sendBuffer ClientParametersGetCmd error %d (%m)",error);
         }
     } else {
         error = errno;
-        ERROR_MSG("sendBuffer DbgFlagsCommandHeader error (%m)",error);                            
+        ERROR_MSG("sendBuffer DbgFlagsCommandHeader error %d (%m)",error);
     }
 
     return error;
@@ -858,25 +991,76 @@ static __inline int readDebugFlag(int connected_socket,DbgFlagsCommand *cmd,Full
             /* wait for the answer */            
             size_t bytesReceived = 0;
             error = receiveBuffer(connected_socket,pfullDbgFlag,sizeof(FulldebugFlags),&bytesReceived);
-            if (error != EXIT_SUCCESS) {                
+            //if (error != EXIT_SUCCESS) {
+            if (EXIT_SUCCESS == error) {
                 const unsigned char* buffer = (unsigned char*)pfullDbgFlag;
                 if ((EPIPE == error) && (isRemoteStatus(buffer,bytesReceived))) {                    
                     error = getRemoteStatus(buffer);
-                    DEBUG_MSG("remote error (%m)",error);
+                    DEBUG_MSG("remote error %d (%s)",error,strerror(error));
                     memset(pfullDbgFlag,0,sizeof(FulldebugFlags));
                 }
             } else {
-                ERROR_MSG("receiveBuffer FulldebugFlags error (%m)",error); 
+                ERROR_MSG("receiveBuffer FulldebugFlags error %d (%m)",error);
             }                                                           
         } else { /* sendBuffer ClientParametersGetCmd */            
             error = errno;
-            ERROR_MSG("sendBuffer ClientParametersGetCmd error (%m)",error);                            
+            ERROR_MSG("sendBuffer ClientParametersGetCmd error %d (%m)",error);
         }
     } else {
         error = errno;
-        ERROR_MSG("sendBuffer DbgFlagsCommandHeader error (%m)",error);                            
+        ERROR_MSG("sendBuffer DbgFlagsCommandHeader error %d (%m)",error);
     }
 
+    return error;
+}
+
+#define MAX_CUSTOM_CMD_ANSWER       1024
+static __inline void displayCustomCommandAnswer(FILE *output, const char *buffer) {
+    fprintf(output,buffer);
+}
+
+static __inline int runCustomCommand(int connected_socket,DbgFlagsCommand *cmd,FILE *output) {
+    int error = EXIT_SUCCESS;
+    size_t cmd_size = 0;
+    /* BUG ? buffer MUST BE SEND in two part else the second is received zeroed (?!!!!) */
+    //cmd_size = sizeof(DbgFlagsCommandHeader) + sizeof(ClientParametersGetCmd);
+    //error = sendBuffer(uds_client_socket,&cmd,cmd_size,NULL);
+    /* send header */
+    cmd_size = sizeof(DbgFlagsCommandHeader);
+    error = sendBuffer(connected_socket,&cmd->header,cmd_size,NULL);
+    if (EXIT_SUCCESS == error) {
+        /* then body */
+        cmd_size = sizeof(ClientParametersCustomCmd);
+        error = sendBuffer(connected_socket,&cmd->param.customCmd,cmd_size,NULL);
+        if (EXIT_SUCCESS == error) {
+            /* wait for the answer */
+            while (EXIT_SUCCESS == error) {
+                char customCmdAnswer[MAX_CUSTOM_CMD_ANSWER];
+                size_t bytesReceived = 0;
+                memset(customCmdAnswer,0,sizeof(customCmdAnswer));
+                error = receiveBuffer(connected_socket,customCmdAnswer,sizeof(customCmdAnswer)-1,&bytesReceived);
+                DEBUG_VAR(error,"%d");
+                if  ((EXIT_SUCCESS == error) || (EPIPE == error)) {
+                    DEBUG_DUMP_MEMORY(customCmdAnswer,sizeof(customCmdAnswer));
+                    if (!isRemoteStatus(customCmdAnswer,bytesReceived)) {
+                        customCmdAnswer[MAX_CUSTOM_CMD_ANSWER-1] = '\0';
+                        displayCustomCommandAnswer(output,customCmdAnswer);
+                    } else {
+                        error = getRemoteStatus(customCmdAnswer);
+                        DEBUG_MSG("remote error (%d)",error);
+                    }
+                } else {
+                    ERROR_MSG("receiveBuffer FulldebugFlags error %d",error);
+                }
+            } /* while (EXIT_SUCCESS == error)*/
+        } else { /* sendBuffer ClientParametersGetCmd */
+            error = errno;
+            ERROR_MSG("sendBuffer ClientParametersGetCmd error %d (%m)",error);
+        }
+    } else {
+        error = errno;
+        ERROR_MSG("sendBuffer DbgFlagsCommandHeader error %d (%m)",error);
+    }
     return error;
 }
 
@@ -902,18 +1086,18 @@ static __inline int writeDebugFlagMasks(int connected_socket,DbgFlagsCommand *cm
             if (EXIT_SUCCESS == error) {
                 if (isRemoteStatus((const unsigned char *)&remoteStatus,bytesReceived)) {
                     error = getRemoteStatus((const unsigned char *)&remoteStatus);
-                    DEBUG_MSG("remote error (%m)",error);
+                    DEBUG_MSG("remote error %d (%s)",error,strerror(error));
                 } else {
                     ERROR_MSG("receiveBuffer RemoteStatus invalid");
                     error = ENOMSG;
                 }
             } else {
-                ERROR_MSG("receiveBuffer RemoteStatus error (%m)",error); 
+                ERROR_MSG("receiveBuffer RemoteStatus error %d (%s)",error,strerror(error));
             }
         }
     } else {
         error = errno;
-        ERROR_MSG("sendBuffer DbgFlagsCommandHeader error (%m)",error);                            
+        ERROR_MSG("sendBuffer DbgFlagsCommandHeader error %d (%s)",error,strerror(error));
     }
     return error;
 }
@@ -924,8 +1108,9 @@ int UDSTCPClient(ClientParameters *params) {
 
     if (uds_client_socket != -1) {
         char socket_name[PATH_MAX];                
-
-        error = getSocketName(params->processName,params->pid,params->comp,socket_name);
+        const uid_t userID = params->uid;
+        
+        error = getSocketNameEx(userID,params->processName,params->pid,params->comp,socket_name);
         if (EXIT_SUCCESS == error) {    
             struct sockaddr_un remote;
             int len = 0;
@@ -957,20 +1142,30 @@ int UDSTCPClient(ClientParameters *params) {
                     case eLsLib:
                         //strcpy(cmd.lsLibCmd.moduleName,params->moduleName);
                         error = readLibrariesNames(uds_client_socket,&cmd);
-                        break;                    
+                        break;
+                    case eCustomCmd:
+                        strcpy(cmd.param.customCmd.customCommand,params->param.customCmd.customCommand);
+                        strcpy(cmd.param.customCmd.moduleName,params->param.customCmd.moduleName);
+                        error = runCustomCommand(uds_client_socket,&cmd,params->param.customCmd.customCommandAnswerOutput);
+                        break;
                 } /* switch(cmd.header.command) */
+                DEBUG_VAR(error,"%d");
+
+                if (EPIPE == error) {
+                    error = EXIT_SUCCESS;
+                }
             } else {
                 error = errno;
-                ERROR_MSG("connect to %s error (%m)",socket_name,error);
+                ERROR_MSG("connect to %s error %d (%m)",socket_name,error);
             }
             close(uds_client_socket);
             uds_client_socket = -1;
-        } else { /* getSocketName error */
-            ERROR_MSG("getSocketName %s %d error %d",params->moduleName,params->pid,error);
+        } else { /* getSocketNameEx error */
+            ERROR_MSG("getSocketNameEx %s %d error %d",params->moduleName,params->pid,error);
         }
     } else {
         error = uds_client_socket;
-        ERROR_MSG("socket error (%m)",error);
+        ERROR_MSG("socket error %d (%m)",error);
     }
     return error;
 }
@@ -980,4 +1175,4 @@ MODULE_NAME(dbgFlagsUsingUnixDomainSocket);
 MODULE_AUTHOR(Olivier Charloton);
 MODULE_FILE_VERSION(1.1);
 MODULE_DESCRIPTION(dbgFlags management using Unix Domain Socket);
-MODULE_COPYRIGHT(BSD);
+MODULE_COPYRIGHT(LGPL);

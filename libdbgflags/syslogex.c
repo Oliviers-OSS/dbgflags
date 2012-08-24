@@ -631,11 +631,11 @@ int pmask;
 #undef MODULE_FLAG
 #define MODULE_FLAG FLAG_ASYNC
 
-pthread_t logger = 0;
+static pthread_t logger = 0;
 static pthread_mutex_t logger_lock = PTHREAD_MUTEX_INITIALIZER;
 static buffer_data buffers;
 
-void *syslogger(void* arg) {
+static void *syslogger(void* arg) {
     va_list ap;
     while (1) {
         /* wait for a filled buffer */
@@ -649,7 +649,7 @@ void *syslogger(void* arg) {
     pthread_exit(NULL);
 }
 
-__inline int startLogger() {
+static __inline int startLogger() {
     int error = 0;
     pthread_mutex_lock(&logger_lock);
     /* do the test again to manage the case where the caller was waiting for the mutex during the logger start */

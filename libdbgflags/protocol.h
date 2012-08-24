@@ -40,7 +40,7 @@ typedef struct ClientParametersGetCmd_ {
 } ClientParametersGetCmd;
 
 typedef struct ClientParametersLsLibs_ {
-    char moduleName[MAX_DEBUGFLAGS_NAME_SIZE];    
+    //char moduleName[MAX_DEBUGFLAGS_NAME_SIZE];
 } ClientParametersLsLibs;
 
 /*
@@ -55,6 +55,7 @@ typedef struct ClientParametersGetValuesCmd_ {
 typedef struct ClientParametersCustomCmd_ {
     char moduleName[MAX_DEBUGFLAGS_NAME_SIZE];
     char customCommand[MAX_CUSTOM_CMD_AND_PARAMS];
+    FILE *customCommandAnswerOutput;
 } ClientParametersCustomCmd;
 
 typedef struct ClientParameters_ {
@@ -66,8 +67,9 @@ typedef struct ClientParameters_ {
     union /*cmdParams*/ {
         ClientParametersSetCmd setCmd;
         ClientParametersGetCmd getCmd;
-        /*ClientParametersCustomCmd customCmd;*/
+        ClientParametersCustomCmd customCmd;
     } param;
+    uid_t uid; // UID of the running process to connect to
     //int cmdStatusCode;
 } ClientParameters;
 
@@ -81,7 +83,8 @@ typedef struct DbgFlagsCommand_ {
     union /*params*/ { /* extra parameters for the cmd if needed */
         ClientParametersSetCmd setCmd;
         ClientParametersGetCmd getCmd;
-        //ClientParametersLsLibs lsLibCmd;        
+        //ClientParametersLsLibs lsLibCmd;
+        ClientParametersCustomCmd customCmd;
     } param;
 } DbgFlagsCommand;
 

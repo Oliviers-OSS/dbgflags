@@ -253,7 +253,7 @@ int main(int argc, char *argv[]) {
   params.stdOutLogLevel = LOG_INFO;
   params.stdErrLogLevel = LOG_ERR;
   params.options = LOG_PID;
-#ifdef DEBUG
+#ifdef _DEBUG_
   params.options |= LOG_CONS|LOG_PERROR;
 #endif
   params.cmdLine[0] = '\0';

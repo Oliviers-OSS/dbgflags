@@ -7,6 +7,7 @@ typedef struct LibraryDebugFlagsEntry_ {
     DebugFlags *library;
     struct LibraryDebugFlagsEntry_ *previous;
     struct LibraryDebugFlagsEntry_ *next;    
+    interfaceVersion libraryInterfaceVersion;
 } LibraryDebugFlagsEntry;
 
 static __inline LibraryDebugFlagsEntry *LibraryDebugFlagsEntryFind(LibraryDebugFlagsEntry *entries,const char* name) {
@@ -27,11 +28,12 @@ static __inline LibraryDebugFlagsEntry *LibraryDebugFlagsEntryFind(LibraryDebugF
     return NULL; /* not found */
 }
 
-static __inline int LibraryDebugFlagsEntryAdd(LibraryDebugFlagsEntry **entries,DebugFlags *library) {
+static __inline int LibraryDebugFlagsEntryAdd(LibraryDebugFlagsEntry **entries,DebugFlags *library,const interfaceVersion version) {
     int error = EXIT_SUCCESS;
     LibraryDebugFlagsEntry *item = (LibraryDebugFlagsEntry *) malloc(sizeof(LibraryDebugFlagsEntry));
     if (item != NULL) {
         item->library = library;
+        item->libraryInterfaceVersion = version;
         item->previous = NULL;
         item->next = *entries;
         if (*entries != NULL) {

@@ -84,9 +84,9 @@ static int logFile = -1;
 static char fullProcessName[PATH_MAX];
 static char fullFileName[PATH_MAX];
 static char directory[PATH_MAX];
-char *processName = NULL;
-char *fileDirectory = NULL;
-pthread_mutex_t fileLock =   PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+static char *processName = NULL;
+static char *fileDirectory = NULL;
+static pthread_mutex_t fileLock =   PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 static unsigned int fileSize = 0;
 
 static __inline void setDirectory(char *processNamePosition) {
@@ -124,7 +124,7 @@ static __inline void setProcessName(void) {
         }
     } else { /* EXIT_SUCCESS != getCurrentFullProcessName */
         const pid_t pid = getpid();
-        ERROR_MSG("getCurrentFullProcessName error %m",error);
+        ERROR_MSG("getCurrentFullProcessName error %d (%m)",error);
         setDirectory(NULL);
         sprintf(fullProcessName,"process_%u",pid);
         processName = fullProcessName;        
@@ -147,14 +147,14 @@ static __inline int setFullFileName(void) {
         if (unlink(oldFileNameBuffer) == -1) {
             error = errno;
             if (error != ENOENT) {
-                ERROR_MSG("unlink %s error (%m)",oldFileNameBuffer,error);
+                ERROR_MSG("unlink %s error %d (%m)",oldFileNameBuffer,error);
             }
         }
 
         if (rename(fullFileName,oldFileNameBuffer) == -1) {
             error = errno;
             if (error != ENOENT) {
-                ERROR_MSG("unlink %s error (%m)",oldFileNameBuffer,error);
+                ERROR_MSG("unlink %s error %d (%m)",oldFileNameBuffer,error);
             }
         }
 
@@ -192,7 +192,7 @@ static int createFile(void) {
             WARNING_MSG("logFile was NOT NULL");
             if (close(logFile) != 0) {
                 internalError = errno;
-                ERROR_MSG("close %d error %m",logFile,internalError);
+                ERROR_MSG("close %d error %d (%m)",logFile,internalError);
             }
             logFile = -1;            
         }
@@ -207,19 +207,19 @@ static int createFile(void) {
             fileSize = 0;
         } else {
             error = errno;
-            ERROR_MSG("open %s for creation error (%m)",fullFileName,error);
+            ERROR_MSG("open %s for creation error %d (%m)",fullFileName,error);
         }
 
         internalError = pthread_mutex_unlock(&fileLock);
         if (internalError != EXIT_SUCCESS) {
-            ERROR_MSG("pthread_mutex_lock fileLock error (%m)",internalError);        
+            ERROR_MSG("pthread_mutex_lock fileLock error %d (%s)",internalError,strerror(internalError));
             if (EXIT_SUCCESS == error) {
                 error = internalError;
             }
         }
 
     } else {
-        ERROR_MSG("pthread_mutex_lock fileLock error (%m)",error);        
+        ERROR_MSG("pthread_mutex_lock fileLock error %d (%m)",error);
     }
     
     return error;
@@ -330,19 +330,19 @@ void fileLogger(int priority, const char *format, ...) {
                     ERROR_MSG("nothing has been written in %s",fullFileName);
                 } else {
                     error = errno;
-                    ERROR_MSG("write to %s error (%m)",fullFileName,error);
+                    ERROR_MSG("write to %s error %d (%m)",fullFileName,error);
                 }
             }
 
             internalError = pthread_mutex_unlock(&fileLock);
             if (internalError != EXIT_SUCCESS) {
-                ERROR_MSG("pthread_mutex_lock fileLock error (%m)",internalError);        
+                ERROR_MSG("pthread_mutex_lock fileLock error %d (%s)",internalError,strerror(internalError));
                 if (EXIT_SUCCESS == error) {
                     error = internalError;
                 }
             }
         } else {
-            ERROR_MSG("pthread_mutex_lock fileLock error (%m)",error);        
+            ERROR_MSG("pthread_mutex_lock fileLock error %d (%s)",error,strerror(error));
         }            
         va_end(optional_arguments);
     }

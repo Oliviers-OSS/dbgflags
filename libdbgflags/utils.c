@@ -44,14 +44,14 @@ int getFullProcessName(const pid_t pid,char *processName) {
     } else {
       error = errno;
       //fprintf(stderr,"%s: error reading file %s (%m)\n",__FUNCTION__,procEntryName,error);
-      ERROR_MSG("error reading file %s (%m)",procEntryName,error);
+      ERROR_MSG("error reading file %s %d (%m)",procEntryName,error);
     }
     close(fd);
     fd = -1;
   } else {
     error = errno;
     //fprintf(stderr,"%s: error opening file %s (%m)\n",__FUNCTION__,procEntryName,error);
-    ERROR_MSG("error opening file %s (%m)",procEntryName,error);
+    ERROR_MSG("error opening file %s %d (%m)",procEntryName,error);
   }
       
   return error;
@@ -98,14 +98,14 @@ int getcmdLine(char *cmdLine) {
     } else {
       error = errno;
       //fprintf(stderr,"%s: error reading file %s (%m)\n",__FUNCTION__,procEntryName,error);
-      ERROR_MSG("error reading file %s (%m)\n",procEntryName,error);
+      ERROR_MSG("error reading file %s %d (%m)\n",procEntryName,error);
     }
     close(fd);
     fd = -1;
   } else {
     error = errno;
-    fprintf(stderr,"%s: error opening file %s (%m)\n",__FUNCTION__,procEntryName,error);
-    ERROR_MSG("error opening file %s (%m)\n",procEntryName,error);
+    fprintf(stderr,"%s: error opening file %s %d (%m)\n",__FUNCTION__,procEntryName,error);
+    ERROR_MSG("error opening file %s %d (%m)\n",procEntryName,error);
   }
 
   return error;

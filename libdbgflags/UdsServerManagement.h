@@ -30,7 +30,7 @@ static __inline int makeSocketEntry(char *fullSocketName) {
             if (unlink(fullSocketName) == -1) {
                 if (errno != ENOENT) {
                     error = errno;
-                    ERROR_MSG("unlink %s error (%m)",fullSocketName,error);
+                    ERROR_MSG("unlink %s error %d (%m)",fullSocketName,error);
                 }
             }
         }
@@ -50,7 +50,7 @@ static __inline int removeUDSEntry() {
         /*DEBUG_VAR(fullSocketName,"%s");*/
         if (unlink(fullSocketName) == -1) {
             error = errno;
-            ERROR_MSG("unlink %s error (%m)",fullSocketName,error);
+            ERROR_MSG("unlink %s error %d (%m)",fullSocketName,error);
         }  /* (unlink(fullSocketName) == -1) */
     } /* (EXIT_SUCCESS == getServerSocketName */
     /* error already printed */
@@ -89,10 +89,10 @@ static __inline int initUDSTCPServer(ProcDebugFlagsEntry *dbgFlags) {
             dbgFlags->server.processID = currentPID;
             if (atexit(FreeAllocatedResources) != 0) {
                 error = errno;
-                ERROR_MSG("atexit FreeAllocatedResources error (%m)",error);
+                ERROR_MSG("atexit FreeAllocatedResources error %d (%m)",error);
             }
         } else {
-            ERROR_MSG("pthread_create UDSTCPServer error (%m)",error);
+            ERROR_MSG("pthread_create UDSTCPServer error %d (%s)",error,strerror(error));
         }
     } else {
       DEBUG_MSG("server is already running (PID %u / PTH 0x%X)",dbgFlags->server.processID,dbgFlags->server.thread);

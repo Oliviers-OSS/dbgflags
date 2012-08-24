@@ -1,0 +1,56 @@
+VERS_1.0 {
+    global:
+        registerDebugFlags;
+        registerLibraryDebugFlags;
+        unregisterDebugFlags;
+
+        openlogex;
+        closelogex;
+        setlogmaskex;
+        syslogex;
+        vsyslogex;
+        asyslogex;
+        avsyslogex;
+
+        fileLogger;
+        setFileLoggerDirectory;
+        setFileLoggerMaxSize;
+        openLogFile;
+        closeLogFile;
+
+        consoleLogger;
+        setConsoleLoggerOpt;
+
+        ctxLogger;
+        ctxLogInit;
+        ctxLogUnInit;
+
+        getProcessName;
+        getFullProcessName;
+        getCurrentProcessName;
+        getCurrentFullProcessName;
+        getcmdLine;
+        listPIDS;        
+
+        UDSTCPClient;
+        displayFulldebugFlags;
+
+        begin;
+        equal;
+        contains;
+        end;
+
+        sendChildsOutputsToSyslogThread;
+        syslogproc;        
+
+    local: *;
+};
+
+VERS_1.1 {
+    global:
+        registerDebugFlags;
+        registerLibraryDebugFlags;
+        
+        stringToSyslogLevel;
+        listPIDSEx;    
+} VERS_1.0;

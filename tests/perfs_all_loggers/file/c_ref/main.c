@@ -8,7 +8,7 @@
 
 FILE *logFile = NULL;
 
-void log(const char*format,...) {
+static void log(const char*format,...) {
    char Buffer[1024];
    va_list args;
    int n = 0;
@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
     }
     fclose(logFile);
   } else {
-    fprintf(stderr,"fopen %s error %m",logFileName,errno);
+    fprintf(stderr,"fopen %s error %d (%m)",logFileName,errno);
   }
   /*if (getrusage(RUSAGE_SELF,&used) == 0) {
 

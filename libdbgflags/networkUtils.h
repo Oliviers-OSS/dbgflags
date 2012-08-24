@@ -41,6 +41,7 @@ static __inline int receiveBuffer(int connected_socket,void *buffer,const size_t
         const ssize_t sizeReceived = recv(connected_socket,cursor,toReceive,0);
         if (sizeReceived > 0) {
             DEBUG_VAR(sizeReceived,"%d");
+            DEBUG_DUMP_MEMORY(buffer,sizeReceived);
             cursor += sizeReceived;
             toReceive -= sizeReceived;
         } else if (0 == sizeReceived){

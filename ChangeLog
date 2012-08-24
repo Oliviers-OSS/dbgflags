@@ -1,1 +1,7 @@
 0.0.1 Initial version
+
+0.0.2 Renamed DEBUG to _DEBUG_ to avoid conflic with Cardamon (and RETAIL to _RETAIL_ to be homegeneous)
+      Added user argument to the zo tool to be able to reach programs running on another account
+      tis_legacy_macros corrected
+      New custom debug functions parameter added in the DebugFlags structure
+      API modified and ABI compatibility management added to allow programs build for the previous one to use this version.

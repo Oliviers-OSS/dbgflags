@@ -16,7 +16,7 @@ static __inline int makeRootDir(char *userRootDirName) {
     if (mkdir(userRootDirName,S_IRWXU|S_IRGRP|S_IXGRP) == -1) {
         if (errno != EEXIST) {
             error = errno;       
-            ERROR_MSG("mkdir %s error %m",userRootDirName,error);       
+            ERROR_MSG("mkdir %s error %d (%m)",userRootDirName,error);
         }
     }
 
@@ -33,10 +33,9 @@ static __inline void getPattern(const char *moduleName, char *pattern) {
     DEBUG_VAR(pattern,"%s");
 }
 
-static __inline int getSocketName(const char *moduleName,pid_t pid,comparator comp,char *socketName) {
+static __inline int getSocketNameEx(const uid_t userID,const char *moduleName,pid_t pid,comparator comp,char *socketName) {
     int error = EXIT_SUCCESS;
-    char userRootDirName[PATH_MAX];
-    const uid_t userID = getuid();
+    char userRootDirName[PATH_MAX];    
     DIR *userRootDir = NULL;
     char pattern[PATH_MAX];
 
@@ -81,6 +80,13 @@ static __inline int getSocketName(const char *moduleName,pid_t pid,comparator co
                             DEBUG_VAR(nbMatch,"%d");         
                         } else { /* (pid == 0) */
                             DEBUG_MSG("false positive: %s against %s but pid not found",directoryEntry->d_name,pattern);
+                            DEBUG_VAR(directoryEntry->d_type,"%d");
+                            if (DT_SOCK == directoryEntry->d_type) {
+                                 if (unlink(directoryEntry->d_name) != 0) {
+                                    const int unlink_error = errno;
+                                    INFO_MSG("unlink %s error %d (%m)",directoryEntry->d_name,unlink_error);
+                                }
+                            } /* (DT_SOCK == directoryEntry->d_type) */
                         }
                     } else { /* (matchingDirEntName == NULL) */
                         DEBUG_MSG("false positive: %s against %s but character _ is not found",directoryEntry->d_name,pattern);
@@ -100,15 +106,20 @@ static __inline int getSocketName(const char *moduleName,pid_t pid,comparator co
 
         if (closedir(userRootDir) == -1 ) {
             error = errno;
-            ERROR_MSG("closedir %s error (%m)",userRootDirName,error);
+            ERROR_MSG("closedir %s error %d (%m)",userRootDirName,error);
         }
         userRootDir = NULL;
     } else {
         error = errno;
-        ERROR_MSG("opendir %s error (%m)",userRootDirName,error);
+        ERROR_MSG("opendir %s error %d (%m)",userRootDirName,error);
     }
 
     return error;
+}
+
+static __inline int getSocketName(const char *moduleName,pid_t pid,comparator comp,char *socketName) { /* deprecated */
+    const uid_t userID = getuid();
+    return getSocketNameEx(userID,moduleName,pid,comp,socketName);
 }
 
 #endif /* _UDS_MANAGEMENT_H_ */

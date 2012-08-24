@@ -132,8 +132,9 @@ static __inline buffer_msg* getReadBuffer(buffer_data *asyncdata)
   }
   else
   {
+    error = errno;
     /*syslogex(INTERNALLOG,"sem_wait for read error %d (%m)",errno);*/
-    ERROR_MSG("sem_wait for read error %d (%m)",errno);
+    ERROR_MSG("sem_wait for read error %d (%m)",error);
   }
   return pbuffer;
 }
@@ -159,14 +160,16 @@ static __inline buffer_msg* getTimedReadBuffer(buffer_data *asyncdata,const unsi
     }
     else
     {
-      syslogex(INTERNALLOG,"sem_timedwait for read error %d (%m))",errno);
-      ERROR_MSG("sem_timedwait for read error %d (%m))",errno);
+      const int error = errno;
+      syslogex(INTERNALLOG,"sem_timedwait for read error %d (%m))",error);
+      ERROR_MSG("sem_timedwait for read error %d (%m))",error);
     }
   }
   else
   {
-    syslogex(INTERNALLOG,__FILE__ "(%d): time error %d (%m)",__LINE__,errno);
-    ERROR_MSG("time error %d (%m)",errno);
+    const int error = errno;
+    syslogex(INTERNALLOG,__FILE__ "(%d): time error %d (%m)",__LINE__,error);
+    ERROR_MSG("time error %d (%m)",error);
   }
 
   return pbuffer;
@@ -184,8 +187,9 @@ static __inline buffer_msg* getWriteBuffer(buffer_data *asyncdata)
   }
   else
   {
+    error = errno;
     /*syslogex(INTERNALLOG,"sem_wait for write error %d (%m))",errno);*/
-    ERROR_MSG("sem_wait for write error %d (%m))",errno);
+    ERROR_MSG("sem_wait for write error %d (%m))",error);
   }
   return pbuffer;
 }
@@ -211,14 +215,16 @@ static __inline buffer_msg* getTimedWriteBuffer(buffer_data *asyncdata,const uns
     }
     else
     {
+      error = errno;
       /*syslogex(INTERNALLOG,"sem_timedwait for write error %d (%m)",errno);*/
-      ERROR_MSG("sem_timedwait for write error %d (%m)",errno);
+      ERROR_MSG("sem_timedwait for write error %d (%s)",error,strerror(error));
     }
   }
   else
   {
+    const int error = errno;
     /*syslogex(INTERNALLOG,__FILE__ "(%d): time error %d (%m)",__LINE__,errno);*/
-    ERROR_MSG("time error %d (%m)",__LINE__,errno);
+    ERROR_MSG("time error %d (%s)",error,strerror(error));
   }
 
   return pbuffer;
@@ -226,22 +232,24 @@ static __inline buffer_msg* getTimedWriteBuffer(buffer_data *asyncdata,const uns
 
 static __inline int signalEmptyBufferAvailable(buffer_data *asyncdata)
 {
-  const int error = cursorIncSemaphore(&asyncdata->writePos);
+  int error = cursorIncSemaphore(&asyncdata->writePos);
   if (unlikely(error != 0))
   {
+    error = errno;
     /*syslogex(INTERNALLOG,__FILE__ "sem_post write error %d (%m)",errno);*/
-    ERROR_MSG("sem_post write error %d (%m)",errno);
+    ERROR_MSG("sem_post write error %d (%m)",error);
   }
   return error;
 }
 
 static __inline int signalFilledBufferAvailable(buffer_data *asyncdata)
 {
-  const int error = cursorIncSemaphore(&asyncdata->readPos);
+  int error = cursorIncSemaphore(&asyncdata->readPos);
   if (unlikely(error != 0))
   {
+      error = errno;
     /*syslogex(INTERNALLOG,__FILE__ "sem_post read error %d (%m)",errno);*/
-    ERROR_MSG("sem_post read error %d (%m)",errno);
+    ERROR_MSG("sem_post read error %d (%m)",error);
   }
   return error;
 }

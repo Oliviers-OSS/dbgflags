@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = foreign
 SUBDIRS = libdbgflags zo logproc tests
-#SUBDIRS += extras 
+#SUBDIRS = extras 
 EXTRA_DIST = dbgflags.pc.in
 
 pkgconfigdir = $(libdir)/pkgconfig
@@ -14,10 +14,11 @@ pkgconfig_DATA = dbgflags.pc
 
 RPMBUILD_ROOT = $(top_srcdir)/rpm
 SPEC_FILE = ${RPMBUILD_ROOT}/SPECS/${PACKAGE_TARNAME}.spec
+SPEC_BIN_FILE = ${RPMBUILD_ROOT}/SPECS/${PACKAGE_TARNAME}-bin.spec
 FULL_RPMBUILD_ROOT = ${PWD}/rpm
 
 dist-rpm: ${PACKAGE_TARNAME}-${PACKAGE_VERSION}.tar.gz
-	echo /bin/rm -Rif ${RPMBUILD_ROOT} && \
+	/bin/rm -Rf ${RPMBUILD_ROOT} && \
 	/bin/mkdir -p ${RPMBUILD_ROOT} ${RPMBUILD_ROOT}/BUILD ${RPMBUILD_ROOT}/RPMS ${RPMBUILD_ROOT}/SOURCES ${RPMBUILD_ROOT}/SPECS ${RPMBUILD_ROOT}/SRPMS 
 	/bin/cp $(top_srcdir)/${PACKAGE_TARNAME}-${PACKAGE_VERSION}.tar.gz ${RPMBUILD_ROOT}/SOURCES
 	echo /bin/rm -F ${RPMBUILD_ROOT}/SPECS/*
@@ -59,7 +60,48 @@ dist-rpm: ${PACKAGE_TARNAME}-${PACKAGE_VERSION}.tar.gz
 	/bin/echo "${prefix}/lib/libdbgflags.so.${LIBDBGFLAGS_VERSION}" >>${SPEC_FILE}
 	/bin/echo "${prefix}/lib/libdbgflags.so.${LIBDBGFLAGS_VERSION}.0.1" >>${SPEC_FILE}
 	/bin/echo "${prefix}/lib/pkgconfig/dbgflags.pc" >>${SPEC_FILE}
+	/bin/echo "%_topdir ${FULL_RPMBUILD_ROOT}" >${FULL_RPMBUILD_ROOT}/rpmmacros
 	/bin/echo "%_topdir ${FULL_RPMBUILD_ROOT}" >${HOME}/.rpmmacros
 	/bin/cp $(top_srcdir)/${PACKAGE_TARNAME}-${PACKAGE_VERSION}.tar.gz ${RPMBUILD_ROOT}/SOURCES
-	rpmbuild -ba ${SPEC_FILE} 
+	rpmbuild -ba --macros=${FULL_RPMBUILD_ROOT}/rpmmacros ${SPEC_FILE} 
+
+dist-bin-rpm: 
+	/bin/rm -Rf ${RPMBUILD_ROOT} && \
+	/bin/mkdir -p ${RPMBUILD_ROOT} ${RPMBUILD_ROOT}/BUILD ${RPMBUILD_ROOT}/RPMS ${RPMBUILD_ROOT}/SOURCES ${RPMBUILD_ROOT}/SPECS ${RPMBUILD_ROOT}/SRPMS 
+	/bin/cp $(top_srcdir)/${PACKAGE_TARNAME}-${PACKAGE_VERSION}.tar.gz ${RPMBUILD_ROOT}/SOURCES
+	echo /bin/rm -F ${RPMBUILD_ROOT}/SPECS/*
+	/bin/echo "Summary: dbgflags library and tools runtime" >${SPEC_BIN_FILE}
+	/bin/echo "%define version ${PACKAGE_VERSION}" >>${SPEC_BIN_FILE}
+	/bin/echo "License: LGPL (library) & GPL (tools)" >>${SPEC_BIN_FILE}
+	/bin/echo "Group: Development" >>${SPEC_BIN_FILE}
+	/bin/echo "Name: ${PACKAGE_NAME}" >>${SPEC_BIN_FILE}
+	/bin/echo "Prefix: ${prefix}" >>${SPEC_BIN_FILE}
+	/bin/echo "Release: bin" >>${SPEC_BIN_FILE}	
+	/bin/echo "Version: %{version}" >>${SPEC_BIN_FILE}
+	/bin/echo "Source: ${PACKAGE_TARNAME}-${PACKAGE_VERSION}.tar.gz" >>${SPEC_FILE}
+	/bin/echo "Buildroot: ${FULL_RPMBUILD_ROOT}/BUILD" >>${SPEC_BIN_FILE}
+	/bin/echo "%description" >>${SPEC_BIN_FILE}
+	/bin/echo "dynamic tracing and loggers library runtime" >>${SPEC_BIN_FILE}
+	/bin/echo "%prep" >>${SPEC_BIN_FILE}	
+	/bin/echo "%build" >>${SPEC_BIN_FILE}
+	/bin/echo "/bin/mkdir -p ${FULL_RPMBUILD_ROOT}/BUILD${prefix}/bin " >>${SPEC_BIN_FILE}
+	/bin/echo "/bin/cp ${PWD}/zo/.libs/zo ${FULL_RPMBUILD_ROOT}/BUILD${prefix}/bin" >>${SPEC_BIN_FILE}
+	/bin/echo "/bin/cp ${PWD}/logproc/.libs/logproc ${FULL_RPMBUILD_ROOT}/BUILD${prefix}/bin" >>${SPEC_BIN_FILE}
+	/bin/echo "/bin/mkdir -p ${FULL_RPMBUILD_ROOT}/BUILD${prefix}/lib " >>${SPEC_BIN_FILE}
+	/bin/echo "/bin/cp ${PWD}/libdbgflags/.libs/*.so* ${FULL_RPMBUILD_ROOT}/BUILD${prefix}/lib" >>${SPEC_BIN_FILE}
+	/bin/echo "/bin/cp ${PWD}/libdbgflags/.libs/*a ${FULL_RPMBUILD_ROOT}/BUILD${prefix}/lib" >>${SPEC_BIN_FILE}
+	/bin/echo "%clean" >>${SPEC_BIN_FILE}
+	/bin/echo "/bin/rm -Rf ${RPM_BUILD_ROOT}" >>${SPEC_BIN_FILE}
+	/bin/echo "%files" >>${SPEC_BIN_FILE}
+	/bin/echo "%defattr(-,root,root)" >>${SPEC_BIN_FILE}
+	/bin/echo "${prefix}/bin/logproc" >>${SPEC_BIN_FILE}
+	/bin/echo "${prefix}/bin/zo" >>${SPEC_BIN_FILE}	
+	/bin/echo "${prefix}/lib/libdbgflags.a" >>${SPEC_BIN_FILE}
+	/bin/echo "${prefix}/lib/libdbgflags.la" >>${SPEC_BIN_FILE}
+	/bin/echo "${prefix}/lib/libdbgflags.so" >>${SPEC_BIN_FILE}
+	/bin/echo "${prefix}/lib/libdbgflags.so.${LIBDBGFLAGS_VERSION}" >>${SPEC_BIN_FILE}
+	/bin/echo "${prefix}/lib/libdbgflags.so.${LIBDBGFLAGS_VERSION}.0.1" >>${SPEC_BIN_FILE}	
+	/bin/echo "%_topdir ${FULL_RPMBUILD_ROOT}" >${FULL_RPMBUILD_ROOT}/rpmmacros
+	/bin/echo "%_topdir ${FULL_RPMBUILD_ROOT}" >${HOME}/.rpmmacros
+	rpmbuild -v -bb --macros=${FULL_RPMBUILD_ROOT}/rpmmacros ${SPEC_BIN_FILE} 
 

@@ -1,6 +1,8 @@
 #ifndef _PROC_DEBUG_FLAGS_ENTRY_H_
 #define _PROC_DEBUG_FLAGS_ENTRY_H_
 
+typedef float interfaceVersion;
+
 #include <dbgflags/dbgflags.h>
 #include "LibraryDebugFlagsEntry.h"
 #include <sys/types.h>
@@ -18,13 +20,15 @@ typedef struct ProcDebugFlagsEntry_ {
     LibraryDebugFlagsEntry *libraries;
     pthread_mutex_t mutex;
     ProcDebugFlagsServer server;
+    interfaceVersion processInterfaceVersion;
 } ProcDebugFlagsEntry;
 
 static ProcDebugFlagsEntry g_dbgFlags = {
         NULL, /*process*/
         NULL, /* libraries */
         /*PTHREAD_MUTEX_INITIALIZER*/PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP, /* mutex */
-        {0,-1,0} /* server */
+        {0,-1,0}, /* server */
+        1.1 /* interfaceVersion */
 };
 
 #if 0
@@ -55,12 +59,13 @@ static __inline void getParamModuleName(const char *moduleFullName,char *moduleN
 }
 #endif
 
-static __inline DebugFlags *findDebugFlags(const char *name) {
+static __inline DebugFlags *findDebugFlags(const char *name,interfaceVersion *version) {
     DebugFlags *dbgFlags = NULL;
 
     if (g_dbgFlags.process != NULL) { /* registered process'module name ? */
         if (('\0' == name[0]) || (strcmp(g_dbgFlags.process->moduleName,name) == 0)) {
             dbgFlags = g_dbgFlags.process;
+            *version = g_dbgFlags.processInterfaceVersion;
         }
     }
 
@@ -68,6 +73,7 @@ static __inline DebugFlags *findDebugFlags(const char *name) {
         LibraryDebugFlagsEntry *libDbgFlags = LibraryDebugFlagsEntryFind(g_dbgFlags.libraries,name);
         if (libDbgFlags != NULL) {
             dbgFlags = libDbgFlags->library;
+            *version = libDbgFlags->libraryInterfaceVersion;
         }
     }    
 

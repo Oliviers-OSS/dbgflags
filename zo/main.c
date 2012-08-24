@@ -11,8 +11,10 @@
 #include <string.h>
 #include <syslog.h>
 #include <ctype.h>
+#include <pwd.h>
 #include <linux/limits.h>
 #include <sys/types.h>
+
 
 #ifndef TO_STRING
 #define STRING(x) #x
@@ -26,6 +28,8 @@
 #include "UdsManagement.h"
 extern int listPIDS(const char *pattern, comparator comp,
         unsigned int displayFullName);
+extern int listPIDSEx(const uid_t userID,const char *pattern, comparator comp,
+        unsigned int displayFullName);
 extern unsigned int contains(const char *name, const char *pattern);
 
 static __inline void printVersion(void) {
@@ -38,6 +42,7 @@ static __inline void printVersion(void) {
 #define required_special_argument no_argument
 
 static const struct option longopts[] = {
+    {"user", required_argument, NULL, 'u'},
     {"process", required_argument, NULL, 'p'},
     {"pid", required_argument, NULL, 'i'},
     {"list", optional_argument, NULL, 'l'},
@@ -46,7 +51,7 @@ static const struct option longopts[] = {
     {"syslog-level", required_argument, NULL, 's'},
     {"on", required_special_argument, NULL, 'o'},
     {"off", required_special_argument, NULL, 'f'},
-    {"command", required_special_argument, NULL, 'c'},
+    {"command", required_argument, NULL, 'c'},
     {"help", no_argument, NULL, 'h'},
     {"version", no_argument, NULL, 'v'},
     {NULL, 0, NULL, 0}
@@ -56,6 +61,7 @@ static __inline void printHelp(const char *errorMsg) {
     /*"  -c, --command <custom cmd and its parameters        \n"*/
 #define DESC TO_STRING(PROGRAM_NAME) ": set/get debugFlags'values of a program or a loaded library and manage log level\n"
 #define USAGE  "Usage: " TO_STRING(PROGRAM_NAME) " [OPTIONS] \n" \
+"  -u, --user=<user's name>]                           \n"\
 "  -p, --process=<process'name>]                       \n"\
 "  -i, --pid=<process id>                              \n"\
 "  -l, --list[=<module's name>]                        \n"\
@@ -64,6 +70,7 @@ static __inline void printHelp(const char *errorMsg) {
 "  -s, --syslog-level=<new syslog threshold value>     \n"\
 "  -o, --on <list of flags'bits to set>                \n"\
 "  -f, --off <list of flags'bits to unset>             \n"\
+"  -c, --command <custom command and its arguments>    \n"\
 "  -h, --help                                          \n"\
 "  -v, --version                                       \n"
 
@@ -79,6 +86,8 @@ static __inline void printHelp(const char *errorMsg) {
 typedef enum Operation_ {
     op_read = 0 /* default value */
     , op_write, op_list
+    // interface v2
+    ,op_custom_cmd
 } Operation;
 
 #define syslogMaskSet      (1<<0)
@@ -88,6 +97,7 @@ typedef enum Operation_ {
 
 typedef struct Parameters_ {
     Operation op;
+    uid_t userId;
     char processName[PATH_MAX];
     char moduleName[PATH_MAX];
     pid_t pid;
@@ -96,11 +106,13 @@ typedef struct Parameters_ {
     unsigned int mask;
     unsigned int relativeOnMask;
     unsigned int relativeOffMask;
+    char customCommand[MAX_CUSTOM_CMD_AND_PARAMS];
 } Parameters;
 
 static __inline void initParameters(Parameters * param) {
     memset(param, 0, sizeof (Parameters));
     param->relativeOffMask = (unsigned int) - 1;
+    param->userId = getuid();
 }
 
 static __inline int parseSyslogLevel(const char *param,int *newSyslogLevel) {
@@ -144,13 +156,13 @@ static __inline int parseSyslogLevel(const char *param,int *newSyslogLevel) {
 				   DEBUG_VAR(*newSyslogLevel,"%d");
 				   } */
     else {
-#ifdef DEBUG
+#ifdef _DEBUG_
         if (isalnum(param[0])) {
             DEBUG_VAR(param, "%s");
         } else {
             DEBUG_VAR(param[0], "%d");
         }
-#endif				/* DEBUG */
+#endif	/* _DEBUG_ */
         error = EINVAL;
     }
     return error;
@@ -195,6 +207,25 @@ static __inline int parseFlags(int argc, char *argv[],const unsigned int negativ
     DEBUG_VAR(currentItem, "%d");
 
     return error;
+}
+
+/*
+static __inline int parseCustomCommand(int argc, char *argv[],char *customCommand,int *currentPosition) {
+    int error = EINVAL;
+    return error;
+}*/
+
+static __inline uid_t getUserId(const char *name) {
+    uid_t uid = 0;
+    struct passwd *passwordEntry = getpwnam(name);
+    if (passwordEntry != NULL) {
+        uid = passwordEntry->pw_uid;
+    } else {
+        const int error = errno;
+        ERROR_MSG("getuid error %d (%m)",error);
+    }
+    
+    return uid;
 }
 
 static __inline int getOptionShort(int argc, char *argv[], const struct option *longopts, int *currentPosition, const char **optArg) {
@@ -322,6 +353,14 @@ static __inline int parseCmdLine(int argc, char *argv[], Parameters * parameters
         char errorMsg[100];
 
         switch (optc) {
+            case 'u':
+                parameters->userId = getUserId(optArg);
+                if (0 == parameters->userId)  {
+                    sprintf(errorMsg, "bad user name (%s)",optArg);
+                    error = EINVAL;
+                    printHelp(errorMsg);
+                }
+                break;
             case 'p':
                 strcpy(parameters->processName, optArg);
                 DEBUG_VAR(parameters->processName, "%s");
@@ -404,10 +443,27 @@ static __inline int parseCmdLine(int argc, char *argv[], Parameters * parameters
                 } else {
                     sprintf(errorMsg, "invalid sysloglevel value (%s)",
                             optArg);
+                    error = EINVAL;
                     printHelp(errorMsg);
                 }
                 break;
             case 'c': /* custom command */
+                if (optArg != NULL) {
+                    strncpy(parameters->customCommand, optArg,MAX_CUSTOM_CMD_AND_PARAMS);
+                    if (parameters->customCommand[MAX_CUSTOM_CMD_AND_PARAMS-1] == 0) {
+                        DEBUG_VAR(parameters->customCommand, "%s");
+                        parameters->op = op_custom_cmd;
+                    } else {
+                        const int n = strlen(optArg);
+                        sprintf(errorMsg, "custom command and its parameters exceeds max length (%d < %d)",n,MAX_CUSTOM_CMD_AND_PARAMS);
+                        error = EINVAL;
+                        printHelp(errorMsg);
+                    }
+                } else {
+                    sprintf(errorMsg, "customCommand parameter needs an argument");
+                    error = EINVAL;
+                    printHelp(errorMsg);
+                }
                 break;
             case 'h':
                 printHelp(NULL);
@@ -441,11 +497,12 @@ static __inline int readDbgFlags(Parameters * parameters) {
     ClientParameters clientParameters;
 
     initClientParameters(&clientParameters);
+    clientParameters.uid = parameters->userId;
     clientParameters.processName = parameters->processName;
     clientParameters.moduleName = parameters->moduleName;
     clientParameters.pid = parameters->pid;
     clientParameters.comp = contains;
-    clientParameters.command = eGet;
+    clientParameters.command = eGet;    
     error = UDSTCPClient(&clientParameters);
     if (EXIT_SUCCESS == error) {
         displayFulldebugFlags(stdout,
@@ -466,6 +523,7 @@ static __inline int setDbgFlagsValues(Parameters * parameters) {
     ClientParameters clientParameters;
 
     initClientParameters(&clientParameters);
+    clientParameters.uid = parameters->userId;
     clientParameters.processName = parameters->processName;
     clientParameters.moduleName = parameters->moduleName;
     clientParameters.pid = parameters->pid;
@@ -523,6 +581,29 @@ static __inline int setDbgFlagsValues(Parameters * parameters) {
     return error;
 }
 
+static __inline int execCustomCommand(Parameters * parameters) {
+    int error = EXIT_SUCCESS;
+    ClientParameters clientParameters;
+
+    initClientParameters(&clientParameters);
+    clientParameters.uid = parameters->userId;
+    clientParameters.processName = parameters->processName;
+    clientParameters.moduleName = parameters->moduleName;
+    clientParameters.pid = parameters->pid;
+    clientParameters.comp = contains;
+    strcpy(clientParameters.param.customCmd.customCommand,parameters->customCommand);
+    clientParameters.command = eCustomCmd;
+    clientParameters.param.customCmd.customCommandAnswerOutput = stdout;
+    
+    error = UDSTCPClient(&clientParameters);
+    if (EXIT_SUCCESS == error) {
+        printf("\n");
+    } else {
+        fprintf(stderr,"error %d\n",error);
+    }
+    return error;
+}
+
 int main(int argc, char *argv[]) {
     int error = EXIT_SUCCESS;
     Parameters parameters;
@@ -532,7 +613,7 @@ int main(int argc, char *argv[]) {
     if (EXIT_SUCCESS == error) {
         switch (parameters.op) {
             case op_list:
-                error = listPIDS(parameters.processName, contains, 1);
+                error = listPIDSEx(parameters.userId,parameters.processName, contains, 1);
                 break;
             case op_write:
                 error = setDbgFlagsValues(&parameters);
@@ -542,6 +623,9 @@ int main(int argc, char *argv[]) {
                 break;
             case op_read:
                 error = readDbgFlags(&parameters);
+                break;
+            case op_custom_cmd:
+                error = execCustomCommand(&parameters);
                 break;
         } /* switch(parameters.op) */
     }
@@ -553,6 +637,6 @@ MODULE_NAME(PROGRAM_NAME);
 PACKAGE_NAME_AUTOTOOLS;
 MODULE_AUTHOR_AUTOTOOLS;
 MODULE_VERSION(PROGRAM_VERSION);
-MODULE_FILE_VERSION(1.1);
+MODULE_FILE_VERSION(1.2);
 MODULE_DESCRIPTION(get / set dbgflags and log threshold value);
 MODULE_COPYRIGHT(GPL);
