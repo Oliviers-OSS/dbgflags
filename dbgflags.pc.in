@@ -1,0 +1,11 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: DbgFlags
+Description: dbgflags trace Library
+Version: @VERSION@
+Requires: pthreads
+Libs: -L${libdir} -ldbgflags 
+Cflags: -I${includedir}

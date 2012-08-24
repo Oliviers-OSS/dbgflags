@@ -1,0 +1,198 @@
+/* 
+ * File:   debug_stream.h
+ * Author: oc
+ *
+ * Created on August 27, 2010, 9:51 PM
+ */
+
+#ifndef _DEBUG_STREAM_H_
+#define	_DEBUG_STREAM_H_
+
+#include <ostream>
+#include <sstream>
+#include <functional>
+#include <new>
+#include <cassert>
+#include <string>
+#include <syslog.h>
+#include <cstdio>
+#include <cstdlib>
+
+typedef void (*loggerFct_t)(int priority, const char *format, ...);
+
+template <class characterType, loggerFct_t loggerFct, class traitsType = std::char_traits<characterType> >
+ class Logger{
+
+ public:
+     Logger(){}
+     void operator()(const int level, const std::basic_string<characterType,traitsType> &string) {
+         (*loggerFct)(level,string.c_str());
+     }
+     void operator()(const int level, const characterType *string) {
+         (*loggerFct)(level,string);
+     }
+ };
+
+template <int level, class logger, class characterType, class traitsType = std::char_traits<characterType> >
+class loggerStreamBuffer : public std::basic_stringbuf<characterType,traitsType>  {
+public:
+    loggerStreamBuffer() {
+
+    }
+    virtual ~loggerStreamBuffer() {
+
+    }
+protected:
+    virtual int sync() {
+        const std::basic_string<characterType,traitsType> string = std::basic_stringbuf<characterType,traitsType>::str();
+        logger selectedLogger;
+        selectedLogger(level,string);
+        std::basic_stringbuf<characterType,traitsType>::str(std::basic_string<characterType>());
+        return 0;
+    }
+private:
+    loggerStreamBuffer(const loggerStreamBuffer& orig) {
+        // copy not allowed
+    }
+
+};
+
+template <int level, class logger, class characterType, class traitsType = std::char_traits<characterType> >
+class loggerStream : public std::basic_ostream<characterType,traitsType>  {
+public:
+    loggerStream()
+        : std::basic_ostream<characterType,traitsType> (new loggerStreamBuffer<level,logger,characterType,traitsType>()){
+        }
+    ~loggerStream() {
+        delete std::basic_ostream<characterType,traitsType>::rdbuf();
+    }
+private:
+    loggerStream(const logger &orig) {
+        // copy not allowed
+    }
+};
+
+template <class characterType, size_t maxSize = 1024, class traitsType = std::char_traits<characterType> >
+class traceFunctionCallStaticBufferPolicy {
+	characterType trace[maxSize];
+public:
+	traceFunctionCallStaticBufferPolicy() {
+	}
+	void set(const char *functionName, const char *fileName, const unsigned int lineNumber) {
+		const int n = snprintf(trace,sizeof(trace),"%s (%s:%d)",functionName,fileName,lineNumber);
+		trace[sizeof(trace)-1] = (characterType)0;
+	}
+	void set(const char *functionName) {
+		const int n = snprintf(trace,sizeof(trace),"%s",functionName);
+		trace[sizeof(trace)-1] = (characterType)0;
+	}
+	void set(const char *fileName, const unsigned int lineNumber) {
+		const int n = snprintf(trace,sizeof(trace),"(%s:%d)",fileName,lineNumber);
+		trace[sizeof(trace)-1] = (characterType)0;
+	}
+	const characterType *get() const {
+		return trace;
+	}
+	~traceFunctionCallStaticBufferPolicy() {
+	}
+};
+
+template <class characterType, size_t maxSize>
+inline std::basic_ostream<characterType,std::char_traits<characterType> > & operator<< (std::basic_ostream<characterType,std::char_traits<characterType> > &s, const traceFunctionCallStaticBufferPolicy<characterType,maxSize,std::char_traits<characterType> > &b) {
+	s << b.get();
+	return s;
+};
+
+template <class characterType, class traitsType = std::char_traits<characterType> >
+class traceFunctionCallStdStringPtrPolicy {
+	std::basic_string<characterType,traitsType> *trace;
+public:
+	traceFunctionCallStdStringPtrPolicy()
+		:trace(0) {
+	}
+	void set(const char *functionName, const char *fileName, const unsigned int lineNumber) {
+		assert(0 == trace);
+		trace = new (std::nothrow) std::basic_string<characterType,traitsType>();
+		if (trace) {
+			std::basic_ostream<characterType,characterType> os;
+			os << functionName << " (" << fileName << ':' << lineNumber << ')';
+			*trace = os.str();
+		}
+	}
+	void set(const char *functionName) {
+		assert(0 == trace);
+		trace = new (std::nothrow) std::basic_string<characterType,traitsType>(functionName);		
+	}
+	void set(const char *fileName, const unsigned int lineNumber) {
+		assert(0 == trace);
+		trace = new (std::nothrow) std::basic_string<characterType,traitsType>();
+		if (trace) {
+			std::basic_ostream<characterType,characterType> os;
+			os << "(" << fileName << ':' << lineNumber << ')';
+			*trace = os.str();
+		}
+	}
+	const std::basic_string<characterType,traitsType>& get() const {
+                assert(trace != 0);
+                return *trace;
+	}
+	~traceFunctionCallStdStringPtrPolicy() {
+		if (trace) {
+			delete trace;
+			trace = 0;
+	  	}
+	}
+        bool isNotNull() const {
+          return (trace != 0);
+        }
+};
+
+template <class characterType>
+inline std::basic_ostream<characterType,std::char_traits<characterType> > & operator<< (std::basic_ostream<characterType,std::char_traits<characterType> > &s, const traceFunctionCallStdStringPtrPolicy<characterType,std::char_traits<characterType> > &b) {
+	if (b.isNotNull()) {
+		s << b.get();
+	} else {
+		s << "*** memory error ***";
+	}
+	return s;
+};
+
+template <class logger, class characterType = char, class storagePolicy = traceFunctionCallStaticBufferPolicy<characterType,255>, class traitsType = std::char_traits<characterType> >
+class traceFunctionCall {
+    logger *loggerStream;
+    bool   functionCallTraceEnabled;
+    storagePolicy trace;
+public:
+    traceFunctionCall(logger &stream,const char *functionName, const char *fileName, const unsigned int lineNumber, const bool enabled = true)
+	    :loggerStream(&stream)
+            ,functionCallTraceEnabled(enabled) {
+	if (functionCallTraceEnabled) {
+		trace.set(functionName,fileName,lineNumber);
+                stream << "+" << trace << std::endl;
+	}
+    }
+    traceFunctionCall(logger &stream,const char *functionName, const bool enabled = true)
+	    :loggerStream(&stream)
+            ,functionCallTraceEnabled(enabled) {
+	if (functionCallTraceEnabled) {
+	        trace.set(functionName);
+                stream << "+" << trace << std::endl;
+	}
+    }
+    traceFunctionCall(logger &stream,const char *fileName, const unsigned int lineNumber, const bool enabled = true)
+	    :loggerStream(&stream)
+            ,functionCallTraceEnabled(enabled) {
+	if (functionCallTraceEnabled) {
+	        trace.set(fileName,lineNumber);
+                stream << "+" << trace << std::endl;
+	}
+    }
+    ~traceFunctionCall() {
+	if (functionCallTraceEnabled) {
+        	(*loggerStream) << "-" << trace << std::endl;
+	}
+    }
+};
+
+#endif	/* _DEBUG_STREAM_H_ */
+
