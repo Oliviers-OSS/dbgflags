@@ -82,6 +82,9 @@ static char fullProcessName[PATH_MAX];
 static char directory[PATH_MAX];
 static char *processName = NULL;
 static char *fileDirectory = NULL;
+//static pthread_mutex_t fileLock = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+
+//static int LogMask = 0xff; /* mask of priorities to be logged */
 
 #include "filesUtils.h"
 

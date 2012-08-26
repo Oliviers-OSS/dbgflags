@@ -52,5 +52,48 @@ VERS_1.1 {
         registerLibraryDebugFlags;
         
         stringToSyslogLevel;
-        listPIDSEx;    
+        stringToFacility;
+        listPIDSEx;        
+
+        openConsoleLogger;
+        vdonsoleLogger;
+
+        vfileLogger;
+        setFileLoggerMaxSize;
+        setFileLoggerMaxDuration;
+
+        vctxLogger;
+
+        getCommandLine;
+        
+        openLogger;
+        openLoggerFromCmdLine;
+        openLoggerFromConfigurationFile;
+        setLoggerConfiguration;
+        dynamicLogger;
+        vdynamicLogger;
+        closeLogger;
+        openLoggerFromCmdLineHelp;
+        dynamicLoggerParseCmdLineElement;
+		
+        parseDuration;
+        parseSize;
+
 } VERS_1.0;
+
+VERS_1.2 {
+    global:
+        parseFlagsOptions;
+        openLoggerFromConfigurationFileEx;
+} VERS_1.1;
+
+VERS_1.3 {
+    global:
+        openLogThreadFile;
+        threadFileLogger;
+        vthreadFileLogger;
+        setthreadFileLoggerMaxSize;
+        setThreadFileLoggerMaxDuration;
+        setThreadFileLoggerDirectory;
+        closeLogThreadFile;
+} VERS_1.2;
