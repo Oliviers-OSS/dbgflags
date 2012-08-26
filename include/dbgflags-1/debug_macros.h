@@ -23,6 +23,7 @@
 #elif defined(_SYS_SYSLOG_H)
 #define LOGGER syslog
 #else
+#include <dbgflags/loggers.h>
 #define LOGGER consoleLogger 
 #endif
 #endif /* LOGGER */
@@ -51,7 +52,7 @@
 
 #ifdef _DEBUGFLAGS_H_
 #ifndef FILTER
-#define FILTER if (unlikely(debugFlags.mask &  MODULE_FLAG))
+#define FILTER if (unlikely(MODULE_FLAG == (debugFlags.mask &  MODULE_FLAG)))
 #endif /* FILTER */
 #else /* _DEBUGFLAGS_H_ */
 #define FILTER
@@ -67,16 +68,17 @@
 #include <dbgflags/loggers_streams>
 
 // WARNING: user program MUST allocate (at least) one global instance of one of
-// the following class for each used (syslog's) log level to be able to use cpp debug streams
-typedef loggerStream<LOG_EMERG, Logger<char,LOGGER>, char> emergencyLogger;
-typedef loggerStream<LOG_ALERT, Logger<char,LOGGER>,char> alertLogger;
-typedef loggerStream<LOG_CRIT, Logger<char,LOGGER>,char> criticalLogger;
-typedef loggerStream<LOG_ERR, Logger<char,LOGGER>,char> errorLogger;
-typedef loggerStream<LOG_WARNING, Logger<char,LOGGER>,char> warningLogger;
-typedef loggerStream<LOG_NOTICE, Logger<char,LOGGER>,char> noticeLogger;
-typedef loggerStream<LOG_INFO, Logger<char,LOGGER>,char> infoLogger;
-typedef loggerStream<LOG_DEBUG, Logger<char,LOGGER>,char> debugLogger;
-typedef loggerStream<LOG_DEBUG, Logger<char,ctxLogger>,char> contextLogger;
+// the following class for each used (syslog's) log level to be able to use cpp log streams:
+// just copy the extern declaration below in one of yours cpp file without the extern keywork for example.
+typedef TLSInstanceOf<loggerStream<LOG_EMERG, Logger<char,LOGGER>, char> > emergencyLogger;
+typedef TLSInstanceOf<loggerStream<LOG_ALERT, Logger<char,LOGGER>,char> > alertLogger;
+typedef TLSInstanceOf<loggerStream<LOG_CRIT, Logger<char,LOGGER>,char> > criticalLogger;
+typedef TLSInstanceOf<loggerStream<LOG_ERR, Logger<char,LOGGER>,char> > errorLogger;
+typedef TLSInstanceOf<loggerStream<LOG_WARNING, Logger<char,LOGGER>,char> > warningLogger;
+typedef TLSInstanceOf<loggerStream<LOG_NOTICE, Logger<char,LOGGER>,char> > noticeLogger;
+typedef TLSInstanceOf<loggerStream<LOG_INFO, Logger<char,LOGGER>,char> > infoLogger;
+typedef TLSInstanceOf<loggerStream<LOG_DEBUG, Logger<char,LOGGER>,char> > debugLogger;
+typedef TLSInstanceOf<loggerStream<LOG_DEBUG, Logger<char,ctxLogger>,char> > contextLogger;
 
 extern emergencyLogger    logEmergency;
 extern alertLogger         logAlert;
@@ -107,9 +109,9 @@ extern contextLogger       logContext;
 #define CRIT_MSG(fmt,...)    FILTER LOGGER(LOG_CRIT|LOG_OPTS,DEBUG_LOG_HEADER_POS fmt DEBUG_EOL,__FUNCTION__,__LINE__, ##__VA_ARGS__)
 
 #ifdef __cplusplus
-#define EMERG_STREAM FILTER logEmergency << CPP_DEBUG_LOG_HEADER_POS
-#define ALERT_STREAM FILTER logAlert << CPP_DEBUG_LOG_HEADER_POS
-#define CRITICAL_STREAM  FILTER logCritical << CPP_DEBUG_LOG_HEADER_POS
+#define EMERG_STREAM FILTER logEmergency.getInstance() << CPP_DEBUG_LOG_HEADER_POS
+#define ALERT_STREAM FILTER logAlert.getInstance() << CPP_DEBUG_LOG_HEADER_POS
+#define CRITICAL_STREAM  FILTER logCritical.getInstance() << CPP_DEBUG_LOG_HEADER_POS
 #endif /* __cplusplus */
 
 #ifndef _RETAIL_
@@ -124,9 +126,9 @@ extern contextLogger       logContext;
 #define NOTICE_MSG(fmt,...)  FILTER LOGGER(LOG_NOTICE|LOG_OPTS,SIMPLE_DEBUG_LOG_HEADER fmt DEBUG_EOL, ##__VA_ARGS__)
 
 #ifdef __cplusplus
-#define ERROR_STREAM              FILTER logError << CPP_DEBUG_LOG_HEADER_POS
-#define WARNING_STREAM            FILTER logWarning  << CPP_SIMPLE_DEBUG_LOG_HEADER
-#define NOTICE_STREAM             FILTER  logNotice  << CPP_SIMPLE_DEBUG_LOG_HEADER
+#define ERROR_STREAM              FILTER logError.getInstance() << CPP_DEBUG_LOG_HEADER_POS
+#define WARNING_STREAM            FILTER logWarning.getInstance()  << CPP_SIMPLE_DEBUG_LOG_HEADER
+#define NOTICE_STREAM             FILTER  logNotice.getInstance()  << CPP_SIMPLE_DEBUG_LOG_HEADER
 #endif /* __cplusplus */
 
 #else /* _RETAIL_ */
@@ -136,9 +138,9 @@ extern contextLogger       logContext;
 #define NOTICE_MSG(fmt,...)
 
 #ifdef __cplusplus
-#define ERROR_STREAM      if (0) logError
-#define WARNING_STREAM    if (0) logWarning
-#define NOTICE_STREAM     if (0) logNotice
+#define ERROR_STREAM      if (0) logError.getInstance()
+#define WARNING_STREAM    if (0) logWarning.getInstance()
+#define NOTICE_STREAM     if (0) logNotice.getInstance()
 #endif /* __cplusplus */
 
 #endif /* _RETAIL_ */
@@ -196,16 +198,16 @@ static __inline void dumpMemory(const char *memoryName,const void *address, unsi
 #define CTX_MSG(fmt,...)    FILTER ctxLog(LOG_DEBUG|LOG_OPTS,SIMPLE_DEBUG_LOG_HEADER fmt DEBUG_EOL, ##__VA_ARGS__)
 
 #ifdef __cplusplus
-#define INFO_STREAM            FILTER  logInfo  << CPP_SIMPLE_DEBUG_LOG_HEADER
-#define DEBUG_STREAM           FILTER  logDebug << CPP_SIMPLE_DEBUG_LOG_HEADER
-#define CTX_STREAM             FILTER  logContext   << CPP_SIMPLE_DEBUG_LOG_HEADER
+#define INFO_STREAM            FILTER  logInfo.getInstance()  << CPP_SIMPLE_DEBUG_LOG_HEADER
+#define DEBUG_STREAM           FILTER  logDebug.getInstance() << CPP_SIMPLE_DEBUG_LOG_HEADER
+#define CTX_STREAM             FILTER  logContext.getInstance()   << CPP_SIMPLE_DEBUG_LOG_HEADER
 
 template <class T> inline void DebugVar(const T &v,const char *name, const char *file, const unsigned int line, const char *function) {
-    logDebug << CPP_SIMPLE_DEBUG_LOG_HEADER << file << "(" << line << ") " << function << ": " << name << " = " << v << std::endl;
+    logDebug.getInstance() << CPP_SIMPLE_DEBUG_LOG_HEADER << file << "(" << line << ") " << function << ": " << name << " = " << v << std::endl;
 }
 
 inline void DebugVar(const bool v,const char *name, const char *file, const unsigned int line, const char *function) {
-    logDebug << CPP_SIMPLE_DEBUG_LOG_HEADER << file << "(" << line << ") " << function << ": " << name << " = " << (v?"true":"false") << std::endl;
+    logDebug.getInstance() << CPP_SIMPLE_DEBUG_LOG_HEADER << file << "(" << line << ") " << function << ": " << name << " = " << (v?"true":"false") << std::endl;
 }
 
 #define DEBUG_CPP_VAR(x)  FILTER DebugVar(x,#x,__FILE__,__LINE__,__FUNCTION__)
@@ -224,9 +226,9 @@ inline void DebugVar(const bool v,const char *name, const char *file, const unsi
 #define CTX_MSG(fmt,...)
 
 #ifdef __cplusplus
-#define INFO_STREAM            if (0) logInfo
-#define DEBUG_STREAM           if (0) logDebug
-#define CTX_STREAM             if (0) logContext
+#define INFO_STREAM            if (0) logInfo.getInstance() 
+#define DEBUG_STREAM           if (0) logDebug.getInstance()
+#define CTX_STREAM             if (0) logContext.getInstance()
 #define DEBUG_CPP_VAR(x)
 #endif  /*__cplusplus*/
 

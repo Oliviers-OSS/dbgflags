@@ -104,7 +104,7 @@ int getcmdLine(char *cmdLine) {
     fd = -1;
   } else {
     error = errno;
-    fprintf(stderr,"%s: error opening file %s %d (%m)\n",__FUNCTION__,procEntryName,error);
+    //fprintf(stderr,"%s: error opening file %s %d (%m)\n",__FUNCTION__,procEntryName,error);
     ERROR_MSG("error opening file %s %d (%m)\n",procEntryName,error);
   }
 

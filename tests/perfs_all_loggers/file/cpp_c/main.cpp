@@ -10,12 +10,14 @@
 #define LOG_OPTS 0
 #include <dbgflags/debug_macros.h>
 
+debugLogger         logDebug;
+
 unsigned int function(const unsigned int a,const unsigned  int b) {
    unsigned int i;
    unsigned int s = 0;
    for(i=0;i<b;i++) {
       s += a;
-      DEBUG_VAR(s,"%d");
+      DEBUG_STREAM << CPP_DEBUG_LOG_HEADER_POS << "s = " << s <<std::endl;
    }
    return s;
 }
@@ -33,7 +35,7 @@ int main(int argc, char *argv[]) {
 
   for(i=0;i<n;i++) {
      r = function(4,n);
-     DEBUG_VAR(r,"%d");
+     DEBUG_STREAM << CPP_DEBUG_LOG_HEADER_POS << "r = " << r <<std::endl;
   }
 
   /*if (getrusage(RUSAGE_SELF,&used) == 0) {

@@ -161,14 +161,14 @@ static __inline buffer_msg* getTimedReadBuffer(buffer_data *asyncdata,const unsi
     else
     {
       const int error = errno;
-      syslogex(INTERNALLOG,"sem_timedwait for read error %d (%m))",error);
+      /*syslogex(INTERNALLOG,"sem_timedwait for read error %d (%m))",error);*/
       ERROR_MSG("sem_timedwait for read error %d (%m))",error);
     }
   }
   else
   {
     const int error = errno;
-    syslogex(INTERNALLOG,__FILE__ "(%d): time error %d (%m)",__LINE__,error);
+    /*syslogex(INTERNALLOG,__FILE__ "(%d): time error %d (%m)",__LINE__,error);*/
     ERROR_MSG("time error %d (%m)",error);
   }
 

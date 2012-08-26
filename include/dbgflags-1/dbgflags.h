@@ -38,26 +38,32 @@ extern "C"
 {
 #endif
 
+#include <dbgflags/version.h>
+
 #define MAX_DEBUGFLAGS_NAME_SIZE 32
 #define FLAGS_SIZE 32 /*(sizeof(unsigned int))*/
 
-/* interface v2.0 */
+#if DBGFLAGS_INTERFACE_VERSION >= 11
+
+/* interface v1.1 */
 #define MAX_CUSTOM_CMD_AND_PARAMS  127
 
-/* interface v2.0 */
 typedef void (*customHelpCommand)(FILE *stream);
 typedef int (*customCommandsHandler)(int argc, char *argv[],FILE *stream);
 typedef struct _DebugFlagsCustomCommands {
     customHelpCommand customHelpCmd;    /* MUST BE set to NULL when not set */
     customCommandsHandler customCmdHandler; /* MUST BE set to NULL when not set */
 } DebugFlagsCustomCommands;
+#endif /* DBGFLAGS_INTERFACE_VERSION >= 11 */
 
 /* interface v1.0 */
 typedef struct _DebugFlags {
 	char moduleName[MAX_DEBUGFLAGS_NAME_SIZE];
 	char flagsNames[FLAGS_SIZE][MAX_DEBUGFLAGS_NAME_SIZE];
-	unsigned int mask;        
-        DebugFlagsCustomCommands customCommands; /* interface v2.0 */
+	unsigned int mask;
+#if DBGFLAGS_INTERFACE_VERSION >= 11
+        DebugFlagsCustomCommands customCommands; /* interface v1.1 */
+#endif /* DBGFLAGS_INTERFACE_VERSION >= 11 */
 } DebugFlags;
 
 int registerDebugFlags(const DebugFlags *dbgFlags);
@@ -146,23 +152,7 @@ public:
      unregisterDebugFlags(dbgflag);
   }
 };
-#if 0
-class CDebugFlagsMgr : public _DebugFlags {
-  
-public:
-   CDebugFlagsMgr( char moduleName[MAX_DEBUGFLAGS_NAME_SIZE],
-                    char flagsNames[FLAGS_SIZE][MAX_DEBUGFLAGS_NAME_SIZE],
-                    unsigned int mask,
-                    DebugFlagsCustomCommands customCommands)
-                    :_DebugFlags(moduleName,flagsNames,mask,customCommands) {
-      registerDebugFlags(this);
-   }
-  ~CDebugFlagsMgr() {
-     unregisterDebugFlags(this);
-  }
-};
-#endif
 
-#endif
+#endif /* __cplusplus */
 
 #endif /*__DEBUGFLAGS_H_*/

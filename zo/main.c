@@ -1,7 +1,7 @@
 #include "config.h"
 #include "debug.h"
 #include <dbgflags/dbgflags.h>
-#include <ModuleVersionInfo.h>
+#include <dbgflags/ModuleVersionInfo.h>
 
 #include <getopt.h>
 #include <stdio.h>
@@ -14,7 +14,6 @@
 #include <pwd.h>
 #include <linux/limits.h>
 #include <sys/types.h>
-
 
 #ifndef TO_STRING
 #define STRING(x) #x
@@ -502,7 +501,7 @@ static __inline int readDbgFlags(Parameters * parameters) {
     clientParameters.moduleName = parameters->moduleName;
     clientParameters.pid = parameters->pid;
     clientParameters.comp = contains;
-    clientParameters.command = eGet;    
+    clientParameters.command = eGet;
     error = UDSTCPClient(&clientParameters);
     if (EXIT_SUCCESS == error) {
         displayFulldebugFlags(stdout,

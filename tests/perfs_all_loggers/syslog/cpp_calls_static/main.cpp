@@ -77,6 +77,7 @@ int main(int argc, char *argv[]) {
 
   registerDebugFlags(&debugFlags);
   //debugFlags.mask = 0x0;
+  //setFileLoggerDirectory("/tmp");
 
   if (argc > 1) {
      n = atoi(argv[1]);

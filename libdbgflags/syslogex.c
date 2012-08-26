@@ -38,6 +38,8 @@
  * 1.2 | new functions for the tools proclog 
  * ---------------------------------------------------------------------
  * 1.3 | RHEL5 compatibility: removed last clibs internals locks
+ * ---------------------------------------------------------------------
+ * 1.4 | Debian6 compatibility: all references to __have_sock_cloexec removed 
  * =====================================================================
  */
 
@@ -113,7 +115,7 @@ static int connected; /* have done connect */
 static int LogStat; /* status bits, set by openlog() */
 static const char *LogTag; /* string to tag the entry with */
 static int LogFacility = LOG_USER; /* default facility code */
-static int LogMask = 0xff; /* mask of priorities to be logged */
+//static int LogMask = 0xff; /* mask of priorities to be logged */
 extern char *__progname; /* Program name, from crt0. */
 
 /* Define the lock.  */
@@ -199,6 +201,11 @@ cancel_handler(void *ptr) {
         __sigaction(SIGPIPE, clarg->oldaction, NULL);
 #endif
 
+    if (clarg != NULL && clarg->buf != NULL) {
+      free(clarg->buf);
+      clarg->buf = NULL;
+    }
+    
     /* Free the lock.  */
     pthread_mutex_unlock(&syslogex_lock);
 }
@@ -222,6 +229,7 @@ __vsyslogex_chk(int pri, int flag, pid_t cpid, pid_t ctid, const char *fmt, va_l
 #endif
     int saved_errno = errno;
     char failbuf[3 * sizeof (pid_t) + sizeof "out of memory []"];
+    const int LogMask = setlogmask(0);
 
 #ifdef _DEBUGFLAGS_H_
     {
@@ -300,26 +308,27 @@ __vsyslogex_chk(int pri, int flag, pid_t cpid, pid_t ctid, const char *fmt, va_l
         }
 
         if (LogStat & LOG_RDTSC) {
-#if 0
-            struct tms buf;
-            const clock_t cpuTimeUsed = times(&buf); //clock();
-            if (likely(cpuTimeUsed != (clock_t) - 1)) {
-                fprintf(f, "(%d (%d:%d))", cpuTimeUsed, buf.tms_utime, buf.tms_stime);
-
-            }
-#endif
-#if 0
-            struct timeval timeVal;
-            if (gettimeofday(&timeVal, NULL) == 0) {
-                fprintf(f, "(%d.%.6d)", timeVal.tv_sec, timeVal.tv_usec);
-            } else {
-                /*syslogex(INTERNALLOG,"gettimeofday error %d (%m)",errno);*/
-                ERROR_MSG("gettimeofday error %d (%m)", errno);
-            }
-#endif
             const unsigned long long int t = rdtsc();
             fprintf(f, "(%llu)", t);
-        } /* (LogStat & LOG_CLOCK) */
+        } /* (LogStat & LOG_RDTSC) */
+
+        if (LogStat & LOG_CLOCK) {
+            #if HAVE_CLOCK_GETTIME
+                struct timespec timeStamp;
+                if (clock_gettime(CLOCK_MONOTONIC,&timeStamp) == 0) {
+                    fprintf(f,"(%lu.%.9d)",timeStamp.tv_sec,timeStamp.tv_nsec);
+                } else {
+                    const int error = errno;
+                    ERROR_MSG("clock_gettime CLOCK_MONOTONIC error %d (%m)",error);
+            }
+            #else
+                static unsigned int alreadyPrinted = 0;
+                if (unlikely(0 == alreadyPrinted)) {
+                    ERROR_MSG("clock_gettime  not available on this system");
+                    alreadyPrinted = 1;
+                }
+            #endif
+        }  /* (LogStat & LOG_CLOCK) */
 
         if (LogStat & LOG_LEVEL) {
             switch (LOG_PRI(pri)) {
@@ -514,34 +523,34 @@ openlog_internal(const char *ident, int logstat, int logfac) {
             if (LogStat & LOG_NDELAY) {
 #ifdef SOCK_CLOEXEC
 #ifndef __ASSUME_SOCK_CLOEXEC
-                if (__have_sock_cloexec >= 0) {
-#endif
+                //if (__have_sock_cloexec >= 0) {
+#endif /* __ASSUME_SOCK_CLOEXEC */
                     LogFile = socket(AF_UNIX,
                             LogType
                             | SOCK_CLOEXEC, 0);
 #ifndef __ASSUME_SOCK_CLOEXEC
-                    if (__have_sock_cloexec == 0)
+                  /*  if (__have_sock_cloexec == 0)
                         __have_sock_cloexec
                             = ((LogFile != -1
                             || errno != EINVAL)
                             ? 1 : -1);
-                }
-#endif
-#endif
+                }*/
+#endif /* __ASSUME_SOCK_CLOEXEC */
+#endif /* SOCK_CLOEXEC */
 #ifndef __ASSUME_SOCK_CLOEXEC
 #ifdef SOCK_CLOEXEC
-                if (__have_sock_cloexec < 0)
-#endif
+                //if (__have_sock_cloexec < 0)
+#endif /* SOCK_CLOEXEC */
                     LogFile = socket(AF_UNIX, LogType, 0);
-#endif
+#endif /* __ASSUME_SOCK_CLOEXEC */
                 if (LogFile == -1)
                     return;
 #ifndef __ASSUME_SOCK_CLOEXEC
 #ifdef SOCK_CLOEXEC
-                if (__have_sock_cloexec < 0)
-#endif
+                //if (__have_sock_cloexec < 0)
+#endif /* SOCK_CLOEXEC */
                     __fcntl(LogFile, F_SETFD, FD_CLOEXEC);
-#endif
+#endif /* __ASSUME_SOCK_CLOEXEC */
             }
         }
         if (LogFile != -1 && !connected) {
@@ -612,17 +621,9 @@ closelogex() {
 
 /* setlogmask -- set the log mask level */
 int
-setlogmaskex(pmask)
-int pmask;
+setlogmaskex(int pmask)
 {
-    int omask;
-
-    omask = LogMask;
-    if (pmask != 0) {
-        LogMask = pmask;
-        setlogmask(LogMask);
-    }
-    return (omask);
+    return setlogmask(pmask);
 }
 
 /* asynchronous versions */
@@ -767,7 +768,7 @@ typedef struct outputToSyslogParam_ {
     int level;
 } outputToSyslogParam;
 
-void* sendChildsOutputsToSyslogThread(void *p) {
+void* sendChildOutputToSyslogThread(void *p) {
     int error = EXIT_SUCCESS;
     sigset_t blockedSignalsMask;
     outputToSyslogParam *params = (outputToSyslogParam*) p;
@@ -795,7 +796,7 @@ void* sendChildsOutputsToSyslogThread(void *p) {
     return NULL;
 }
 
-static inline int sendChildsOutputsToSyslog(const pid_t child, int stdoutReadPipe, int stderrReadPipe, int eventsReadPipe, int stdOutLogLevel, int stdErrLogLevel) {
+static inline int sendChildrenOutputsToSyslog(const pid_t child, int stdoutReadPipe, int stderrReadPipe, int eventsReadPipe, int stdOutLogLevel, int stdErrLogLevel) {
     int error = EXIT_SUCCESS;
     outputToSyslogParam stdoutParams, stderrParams;
     pthread_t stdoutThread, stderrThread;
@@ -808,9 +809,9 @@ static inline int sendChildsOutputsToSyslog(const pid_t child, int stdoutReadPip
     stderrParams.pipe = stderrReadPipe;
     stderrParams.level = stdErrLogLevel;
 
-    error = pthread_create(&stdoutThread, NULL, sendChildsOutputsToSyslogThread, &stdoutParams);
+    error = pthread_create(&stdoutThread, NULL, sendChildOutputToSyslogThread, &stdoutParams);
     if (0 == error) {
-        error = pthread_create(&stderrThread, NULL, sendChildsOutputsToSyslogThread, &stderrParams);
+        error = pthread_create(&stderrThread, NULL, sendChildOutputToSyslogThread, &stderrParams);
         if (0 == error) {
             int childStatus = -1;
             const pid_t pid = waitpid(child, &childStatus, 0);
@@ -886,7 +887,7 @@ static void sigChildHandler(int x) {
 #define MAX(a, b)  (((a) > (b)) ? (a) : (b))
 #endif
 
-static inline int sendChildsOutputsToSyslog(const pid_t child, int stdoutReadPipe, int stderrReadPipe, int eventsReadPipe, int stdOutLogLevel, int stdErrLogLevel) {
+static inline int sendChildrenOutputsToSyslog(const pid_t child, int stdoutReadPipe, int stderrReadPipe, int eventsReadPipe, int stdOutLogLevel, int stdErrLogLevel) {
     int error = EXIT_SUCCESS;
     fd_set readfds, exceptsfds;
     sigset_t blockedSignalsMask, previousSignalsMask;
@@ -1031,7 +1032,7 @@ int syslogproc(const char *cmd, char *argv[], const int option, const int facili
                             CLOSE_PIPE(stdoutPipe[WRITE]);
                             CLOSE_PIPE(stderrPipe[WRITE]);
                             openlogex(NULL, option, facility);
-                            error = sendChildsOutputsToSyslog(child, stdoutPipe[READ], stderrPipe[READ], eventsPipe[READ], stdOutLogLevel, stdErrLogLevel);
+                            error = sendChildrenOutputsToSyslog(child, stdoutPipe[READ], stderrPipe[READ], eventsPipe[READ], stdOutLogLevel, stdErrLogLevel);
                             DEBUG_VAR(error, "%d");
                             closelogex();
                             break;
@@ -1064,11 +1065,11 @@ int syslogproc(const char *cmd, char *argv[], const int option, const int facili
 #undef READ
 #undef WRITE
 
-#include "ModuleVersionInfo.h"
+#include <dbgflags/ModuleVersionInfo.h>
 MODULE_NAME(syslogex);
 MODULE_AUTHOR(Olivier Charloton);
 MODULE_VERSION(1.1);
-MODULE_FILE_VERSION(1.3);
+MODULE_FILE_VERSION(1.4);
 MODULE_DESCRIPTION(syslog extended);
 MODULE_COPYRIGHT(LGPL);
 

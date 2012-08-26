@@ -1,5 +1,5 @@
 /* 
- * File:   memLogger.h
+ * File:   ctxLogger.h
  * Author: oc
  *
  * Created on September 10, 2010, 1:05 AM
@@ -34,6 +34,7 @@ extern pthread_mutex_t ctxCursorLock;
 
 int ctxLogInit(void);
 void ctxLogger(int priority, const char *format, ...); /* not "inline" function to be able to have a fct ptr */
+void vctxLogger(int priority, const char *format,va_list optional_arguments);
 void ctxLogUnInit(void);
 
 #define ctxLog(priority,format, ...) { \

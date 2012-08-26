@@ -28,9 +28,10 @@ extern "C"
 #define CHECK_NON_NULL_PTR(n)
 #endif /* __GNUC__ */
 
-#define LOG_TID    0x040  /* log the tid (Thread ID) with each message                             */
+#define LOG_TID    0x040  /* log the TID (Thread ID) with each message                             */
 #define LOG_RDTSC  0x080  /* log the number of clock cycles since the CPU was powered up or reset  */
 #define LOG_LEVEL  0x100  /* log the msg level                                                     */
+#define LOG_CLOCK  0x1000  /* log a time that represents monotonic time since some unspecified starting point */
 
 void openlogex (const char *ident, int logstat, int logfac) NO_PROFILING;
 int  setlogmaskex (int pmask) NO_PROFILING;

@@ -80,6 +80,7 @@ static __inline DebugFlags *findDebugFlags(const char *name,interfaceVersion *ve
     return dbgFlags;
 }
 
+#ifdef _DEBUG_
 static __inline void dumpDebugFlags(const DebugFlags *pEntry) {
     if (pEntry != NULL) {
         unsigned int i;     
@@ -125,4 +126,12 @@ static __inline void dumpProcDebugFlagsEntry(const ProcDebugFlagsEntry *pEntry) 
     DEBUG_VAR(syslogMask,"0x%X");
 }
 
+#else /* _DEBUG_ */
+
+#define dumpDebugFlags(a)
+#define dumpLibraryDebugFlagsEntry(a)
+#define dumpProcDebugFlagsServer(a)
+#define dumpProcDebugFlagsEntry(a)
+
+#endif /* _DEBUG_ */
 #endif /* _PROC_DEBUG_FLAGS_ENTRY_H_ */

@@ -18,6 +18,7 @@ extern "C" {
 #include <stdio.h>
 #include <stdarg.h>
 #include <syslog.h>
+#include <string.h>
 
 #ifndef CTX_LOGGER_MAX_LINE_SIZE
 #define CTX_LOGGER_MAX_LINE_SIZE   1024
@@ -46,12 +47,12 @@ void ctxLogUnInit(void);
         } \
         const int unlockError = pthread_mutex_unlock(&ctxCursorLock); \
         if (unlockError != EXIT_SUCCESS) { \
-            ERROR_MSG("pthread_mutex_unlock ctxCursorLock error (%m)",unlockError); \
+            ERROR_MSG("pthread_mutex_unlock ctxCursorLock error %d (%s)",unlockError,strerror(unlockError)); \
         } \
         snprintf(writePosition,CTX_LOGGER_MAX_LINE_SIZE,format DEBUG_EOL, ##__VA_ARGS__); \
         writePosition[CTX_LOGGER_MAX_LINE_SIZE-1] = '\0'; \
     } else { \
-        ERROR_MSG("pthread_mutex_lock ctxCursorLock error (%m)",lockError); \
+        ERROR_MSG("pthread_mutex_lock ctxCursorLock error %d (%s)",lockError,strerror(lockError)); \
     } \
 } \
 
@@ -81,10 +82,10 @@ static inline void dumpCtxLog(void) { /* inline to be able to use the user progr
 
         unlockError = pthread_mutex_unlock(&ctxCursorLock);
         if (unlockError != EXIT_SUCCESS) {
-            LOGGER(LOG_ERR,"pthread_mutex_unlock ctxCursorLock error (%m)",unlockError);
+            LOGGER(LOG_ERR,"pthread_mutex_unlock ctxCursorLock error (%d)",unlockError);
         }
     } else {
-        LOGGER(LOG_ERR,"pthread_mutex_lock ctxCursorLock error (%m)",lockError);
+        LOGGER(LOG_ERR,"pthread_mutex_lock ctxCursorLock error %d (%s)",lockError,strerror(lockError));
     }
 }
 

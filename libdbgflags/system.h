@@ -3,11 +3,14 @@
 
 #include <pthread.h>
 #include <linux/unistd.h>
+#include <linux/version.h>
 #include <errno.h>
 
-static pid_t __gettid()
-{
-  long res;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0))
+static __inline pid_t __gettid() {
+  long res = 0;
+
+  /* linux 2.4.x'syscall using int $0x80 */
   __asm__ volatile ("int $0x80" \
   : "=a" (res) \
   : "0" (__NR_gettid));
@@ -20,11 +23,21 @@ static pid_t __gettid()
     }
     return (pid_t) (res);
   } while (0);
+  return res;
 }
+#else //(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0))
+#include <sys/syscall.h>
+
+static __inline pid_t __gettid() {
+  const pid_t tid = (pid_t) syscall (SYS_gettid);
+  return tid;
+}
+
+#endif //(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0))
+
 #define gettid __gettid
 
-static __inline unsigned long long int rdtsc(void)
-{
+static __inline unsigned long long int rdtsc(void) {
    unsigned long long int x;
    unsigned a, d;
 

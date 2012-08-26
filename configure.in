@@ -2,14 +2,14 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.57)
-AC_INIT(dbgflags,0.0.2,oliviers.open.source.softwares@gmail.com)
+AC_INIT(dbgflags,0.0.4,oliviers.open.source.softwares@gmail.com)
 AM_INIT_AUTOMAKE([dist-bzip2])
 LIBDBGFLAGS_VERSION=1
-LIBDBGFLAGS_REVISION=0
+LIBDBGFLAGS_REVISION=1
 LIBDBGFLAGS_INTERFACE_AGE=1
+AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([libdbgflags/dbgFlagsUDS.c])
 AM_CONFIG_HEADER([config.h])
-AM_PROG_LIBTOOL
 
 # Checks for programs.
 AC_PROG_CXX
@@ -19,11 +19,12 @@ AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
 AC_PROG_LIBTOOL
-AC_PROG_RANLIB
+#AC_PROG_RANLIB libtoolize: `AC_PROG_RANLIB' is rendered obsolete by `LT_INIT'
+LT_INIT
 
 # Checks for libraries.
 AC_CHECK_LIB([pthread], [pthread_create])
-AC_CHECK_LIB([rt], [main])
+#AC_CHECK_LIB([rt], [main])
 
 # Checks for header files.
 AC_HEADER_DIRENT
@@ -31,7 +32,7 @@ AC_HEADER_STDC
 AC_HEADER_TIME
 AC_HEADER_SYS_WAIT
 AC_HEADER_STDBOOL
-AC_CHECK_HEADERS([errno.h fcntl.h locale.h netdb.h paths.h stdio_ext.h stdlib.h string.h syslog.h unistd.h sys/socket.h sys/param.h sys/time.h])
+AC_CHECK_HEADERS([errno.h fcntl.h locale.h netdb.h paths.h stdio_ext.h stdlib.h string.h syslog.h unistd.h limits.h stddef.h sys/socket.h sys/param.h sys/time.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -42,6 +43,7 @@ AC_TYPE_SIZE_T
 AC_TYPE_SSIZE_T
 AC_TYPE_MODE_T
 AC_TYPE_UID_T
+AC_TYPE_OFF_T
 AC_STRUCT_TM
 
 # set library version
@@ -60,7 +62,7 @@ AC_ARG_ENABLE(debug,
         [enable_debug="no"]
 )
 if test "$enable_debug" = "yes"; then
-        AC_DEFINE(_DEBUG_, 1, [Defined if debug mode is enabled (its easier to check).])
+        AC_DEFINE(_DEBUG_, 1, [Defined if debug mode is enabled (it's easier to check).])
         #CFLAGS="$CFLAGS -O0 -ggdb3"
 fi
 if test "$enable_debug" = "no"; then
@@ -80,6 +82,43 @@ if test "$enable_profiling_hooks" = "yes"; then
         AC_DEFINE(PROFILING_HOOKS_ENABLED, 1, [Defined if profilink hooks are enabled])
 fi
 
+# large file support 
+AC_ARG_ENABLE(large-files-support,[  --enable-large-files-support enable Large Files Support (LFS, above 2GiB) ],
+        [case "${enableval}" in
+           yes) enable_lfs="yes";;
+            no) enable_lfs="no" ;;
+             *) AC_MSG_ERROR(bad value ${enableval} for --enable-large-files-support) ;;
+        esac],
+        [enable_lfs="no"]
+)
+if test "$enable_lfs" = "yes"; then
+        AC_DEFINE(_FILE_OFFSET_BITS, 64, [Defined if LFS is enabled])
+fi
+
+# Dynamic Logger XML Configuration File
+AC_ARG_ENABLE(XML-configuration-file,[  --enable-XML-configuration-file enable dynamic logger XML configuration file support ],
+        [case "${enableval}" in
+           yes) enable_XMLConfigFile="yes";;
+            no) enable_XMLConfigFile="no" ;;
+             *) AC_MSG_ERROR(bad value ${enableval} for --enable-XML-configuration-file) ;;
+        esac],
+        [enable_XMLConfigFile="no"]
+)
+if test "$enable_XMLConfigFile" = "yes"; then
+        AC_CHECK_LIB([expat], [XML_ParserCreate])
+fi
+
+# tests programs
+AC_ARG_ENABLE(tests-programs-build,[  --enable-tests-programs-build enable building of the library's tests programs (default is no) ],
+        [case "${enableval}" in
+           yes) testsProgramsBuild="yes";;
+            no) testsProgramsBuild="no" ;;
+             *) AC_MSG_ERROR(bad value ${enableval} for --enable-tests-programs-build) ;;
+        esac],
+        [testsProgramsBuild="no"]
+)
+AM_CONDITIONAL(TESTS_PROGRAMS_BUILD_ENABLED,[test "$testsProgramsBuild" = "yes"])
+
 # Checks for library functions.
 AC_FUNC_CLOSEDIR_VOID
 AC_FUNC_MALLOC
@@ -89,7 +128,9 @@ AC_FUNC_VPRINTF
 AC_FUNC_FORK
 AC_FUNC_SELECT_ARGTYPES
 AC_FUNC_ERROR_AT_LINE
-AC_CHECK_FUNCS([atexit gettimeofday localtime_r memmove mempcpy memset mkdir socket strcasecmp strncasecmp strrchr strstr strtoul connect dup2 select strchr strerror])
+AC_FUNC_LSTAT
+AC_FUNC_LSTAT_FOLLOWS_SLASHED_SYMLINK
+AC_CHECK_FUNCS([atexit gettimeofday localtime_r memmove mempcpy memset mkdir socket strcasecmp strncasecmp strrchr strstr strtol strtoul connect dup2 select strchr strerror clock_gettime])
 
 # extras subdirectory is not available (and useless) in the public open source version
 # extras//Makefile   
@@ -106,6 +147,11 @@ AC_CONFIG_FILES([Makefile
                  tests/Makefile
                  tests/main/Makefile
                  tests/main_static/Makefile
+                 tests/main-dynamic/Makefile
+                 tests/main-dynamic/c/Makefile
+                 tests/main-dynamic/cpp/Makefile
+                 tests/main-dynamic-pkgconfig/Makefile
+                 tests/main-dynamic-xml/Makefile
                  tests/perfs/Makefile
                  tests/perfs/c/Makefile
                  tests/perfs/cpp/Makefile
@@ -185,5 +231,47 @@ AC_CONFIG_FILES([Makefile
                  tests/perfs_all_loggers/syslogex/cpp_d1/Makefile
                  tests/perfs_all_loggers/syslogex/cpp_ref/Makefile
                  tests/perfs_all_loggers/syslogex/c_ref/Makefile
+                 tests/perfs_all_loggers/dynamic/Makefile
+                 tests/perfs_all_loggers/dynamic/c/Makefile
+                 tests/perfs_all_loggers/dynamic/c_d0/Makefile
+                 tests/perfs_all_loggers/dynamic/c_d1/Makefile
+                 tests/perfs_all_loggers/dynamic/cpp/Makefile
+                 tests/perfs_all_loggers/dynamic/cpp_c/Makefile
+                 tests/perfs_all_loggers/dynamic/cpp_calls_dynamic/Makefile
+                 tests/perfs_all_loggers/dynamic/cpp_calls_dynamic_d0/Makefile
+                 tests/perfs_all_loggers/dynamic/cpp_calls_static/Makefile
+                 tests/perfs_all_loggers/dynamic/cpp_calls_static_d0/Makefile
+                 tests/perfs_all_loggers/dynamic/cpp_c_d0/Makefile
+                 tests/perfs_all_loggers/dynamic/cpp_c_d1/Makefile
+                 tests/perfs_all_loggers/dynamic/cpp_d0/Makefile
+                 tests/perfs_all_loggers/dynamic/cpp_d1/Makefile
+                 tests/perfs_all_loggers/dynamic/cpp_ref/Makefile
+                 tests/perfs_all_loggers/dynamic/c_ref/Makefile
+                 tests/perfs_all_loggers/threadfile/Makefile
+                 tests/perfs_all_loggers/threadfile/c/Makefile
+                 tests/perfs_all_loggers/threadfile/c_d0/Makefile
+                 tests/perfs_all_loggers/threadfile/c_d1/Makefile
+                 tests/perfs_all_loggers/threadfile/cpp/Makefile
+                 tests/perfs_all_loggers/threadfile/cpp_c/Makefile
+                 tests/perfs_all_loggers/threadfile/cpp_calls_dynamic/Makefile
+                 tests/perfs_all_loggers/threadfile/cpp_calls_dynamic_d0/Makefile
+                 tests/perfs_all_loggers/threadfile/cpp_calls_static/Makefile
+                 tests/perfs_all_loggers/threadfile/cpp_calls_static_d0/Makefile
+                 tests/perfs_all_loggers/threadfile/cpp_c_d0/Makefile
+                 tests/perfs_all_loggers/threadfile/cpp_c_d1/Makefile
+                 tests/perfs_all_loggers/threadfile/cpp_d0/Makefile
+                 tests/perfs_all_loggers/threadfile/cpp_d1/Makefile
+                 tests/perfs_all_loggers/threadfile/cpp_ref/Makefile
+                 tests/perfs_all_loggers/threadfile/c_ref/Makefile
+                 tests/threads/Makefile
+                 tests/threads/file/Makefile
+                 tests/threads/file/c/Makefile
+                 tests/threads/file/cpp/Makefile
+                 tests/threads/threadfile/Makefile
+                 tests/threads/threadfile/c/Makefile
+                 tests/threads/threadfile/cpp/Makefile
+                 tests/big_messages/Makefile
+                 tests/big_messages/console/Makefile
+                 tests/big_messages/file/Makefile
                  ])
 AC_OUTPUT

@@ -6,6 +6,7 @@ includedir=@includedir@
 Name: DbgFlags
 Description: dbgflags trace Library
 Version: @VERSION@
-Requires: pthreads
-Libs: -L${libdir} -ldbgflags 
+Requires: 
+Libs: -L${libdir} -ldbgflags -lpthread
+Libs.private: -lrt
 Cflags: -I${includedir}

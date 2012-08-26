@@ -1,3 +1,9 @@
 man pages
-may be a runtime configuration logger
+logger to files using AIO
+FAQ
+zo source code "mess" cleanup
+zo activated syslog levels textual display to be corrected
+memory leaks when using C++ and/or TIS interface (to be confirmed)
+logger sending trace to one file per thtread
+better TIS legacy compatibility test to look for memory leaks
 

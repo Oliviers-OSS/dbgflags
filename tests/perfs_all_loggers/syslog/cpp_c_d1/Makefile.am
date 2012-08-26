@@ -1,5 +1,5 @@
 AUTOMAKE_OPTIONS = foreign
-INCLUDES = -I$(top_builddir)/include -I$(top_srcdir) 
+INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir) 
 AM_CXXFLAGS=-DLOGGER=syslog
 
 noinst_PROGRAMS = perfcpp_dbgflags_1_c_syslog

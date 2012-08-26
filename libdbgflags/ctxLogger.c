@@ -78,11 +78,10 @@ static inline void append(char *string, const char* s) {
    *writeCursor = '\0';
 }
 
-void ctxLogger(int priority, const char *format, ...) {
+void vctxLogger(int priority, const char *format,va_list optional_arguments) {
     int n = 0;
     const int lockError = pthread_mutex_lock(&ctxCursorLock); 
-    if (EXIT_SUCCESS == lockError) { 
-        va_list optional_arguments;
+    if (EXIT_SUCCESS == lockError) {         
         char *writePosition = ctxLogWritePos; 
         const size_t memorySize = CTX_LOGGER_MAX_LINE_SIZE * CTX_LOGGER_NB_LINE; 
         ctxLogWritePos += CTX_LOGGER_MAX_LINE_SIZE; 
@@ -92,23 +91,28 @@ void ctxLogger(int priority, const char *format, ...) {
         const int unlockError = pthread_mutex_unlock(&ctxCursorLock); 
         if (unlockError != EXIT_SUCCESS) { 
             ERROR_MSG("pthread_mutex_unlock ctxCursorLock error %d (%s)",unlockError,strerror(unlockError));
-        } 
-        va_start(optional_arguments, format);
+        }         
         n = vsnprintf(writePosition,CTX_LOGGER_MAX_LINE_SIZE,format, optional_arguments) + strlen(DEBUG_EOL); 
         append(writePosition + n,DEBUG_EOL);
         writePosition[CTX_LOGGER_MAX_LINE_SIZE-1] = '\0'; 
-        va_end(optional_arguments);
     } else { 
         ERROR_MSG("pthread_mutex_lock ctxCursorLock error %d (%s)",lockError,strerror(lockError));
     }
     /*return n;*/
 }
 
-#include "ModuleVersionInfo.h"
+void ctxLogger(int priority, const char *format, ...) {
+    va_list optional_arguments;
+    va_start(optional_arguments, format);
+    vctxLogger(priority,format, optional_arguments);
+    va_end(optional_arguments);
+}
+
+#include <dbgflags/ModuleVersionInfo.h>
 MODULE_NAME(ctxLogger);
 MODULE_AUTHOR(Olivier Charloton);
 MODULE_VERSION(1.0);
-MODULE_FILE_VERSION(1.0);
+MODULE_FILE_VERSION(1.1);
 MODULE_DESCRIPTION(context logger);
 MODULE_COPYRIGHT(LGPL);
 

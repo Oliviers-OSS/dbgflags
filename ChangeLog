@@ -1,7 +1,25 @@
-0.0.1 Initial version
+0.0.1 - Initial version.
 
-0.0.2 Renamed DEBUG to _DEBUG_ to avoid conflic with Cardamon (and RETAIL to _RETAIL_ to be homegeneous)
-      Added user argument to the zo tool to be able to reach programs running on another account
-      tis_legacy_macros corrected
-      New custom debug functions parameter added in the DebugFlags structure
-      API modified and ABI compatibility management added to allow programs build for the previous one to use this version.
+0.0.2 - Renamed DEBUG to _DEBUG_ to avoid conflic with Cardamon (and RETAIL to _RETAIL_ to be homegeneous)
+      - Added user argument to the zo tool to be able to reach programs running on another account
+      - tis_legacy_macros corrected.
+      - New custom debug functions parameters added in the DebugFlags structure
+      - API modified and ABI compatibility version management added to allow programs build for the previous one to use this version.
+      - dynamicLogger added.
+      - New functions to existing loggers (vFileLogger, openConsoleLogger, vconsoleLogger, vctxLogger) added.
+      - goodies functions stringToSyslogLevel & stringToFacility added and exported.
+      - New fileLogger option to change of file after a specified duration (flag LOG_FILE_DURATION).
+      - Optionnal Large File Support added.
+      - fileLogger honors the LOG_CONS & LOG_PERROR flags now.
+      - New LOG_CLOCK flag to use the clock_gettime(3) to log a timestamp that represents monotonic time since some unspecified starting point.
+
+0.0.3 - A few corrections of Makefiles for the rpms generation and distcheck test.
+      - template class facade to solve C++ streams not threads safe bug.
+
+0.0.4 - A few corrections to build on a Debian 6 64bits.
+      - pkgconfig test program build corrected when the library hase not been already installed.
+      - the gettid internal function use the syscall function (instead of the "int 0x80") when building on a 2.6.x Linux kernel.
+      - Buffer overflow correction in consoleLogger & fileLogger (use a stream buffer now instead of a buffer on the stack).
+        and new test programs to check the library's logger with message of size up to 4096 bytes.
+      - thread cancellation points management in fileLogger added (useless in the consoleLogger).
+      - added instructions to free the used buffer in the thread cancellation points management of the syslogex logger (glibc bug ?)

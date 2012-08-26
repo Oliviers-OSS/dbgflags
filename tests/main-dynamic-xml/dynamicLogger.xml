@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<foo>
+<TRACES
+       FLAGS = "0xFFFFFFFF"
+       LEVEL = "debug">
+   <dynamicLogger
+      LOGGER = "fileLogger"
+      FACILITY = "LOCAL6"
+      OPTIONS = "LOG_CONS,LOG_PERROR,LOG_PID,LOG_TID,LOG_RDTSC,LOG_FILE_ROTATE"
+   />
+   <fileLogger
+              DIRECTORY ="/tmp"
+              MAX_SIZE ="100MB"
+              MAX_DURATION ="0"
+              STRATEGY ="flip-flop"
+              />
+</TRACES>
+</foo>

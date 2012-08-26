@@ -45,7 +45,6 @@ static void FreeAllocatedResources(void);
 #include "UdsServerManagement.h"
 #include "LibrariesNameBuffer.h"
 #include "RemoteStatus.h"
-
 /*
 * comparators
 */
@@ -411,6 +410,7 @@ static void *UDSTCPServer(void* parameter) {
                                     default:
                                         error = EINVAL;
                                         NOTICE_MSG("unknown command %d",dbgFlagsCommand.header.command);
+
                                     } /* switch(dbgFlagsCommand.header.command)*/
 
                                     /* try to send back an error status in case of error */
@@ -526,6 +526,7 @@ static inline int registerLibraryDebugFlagsEx(const DebugFlags *dbgFlags,const i
 int registerDebugFlags_1_0(const DebugFlags *dbgFlags) {
     return registerDebugFlagsEx(dbgFlags,1.0);
 }
+/* function only available in the DSO to keep compatibility with the previous release */
 #if defined(__pic__) || defined(__PIC__) || defined(PIC)
 asm(".symver registerDebugFlags_1_0,registerDebugFlags@VERS_1.0");
 #endif  /* defined(__pic__) || defined(__PIC__) || defined(PIC) */
@@ -533,6 +534,7 @@ asm(".symver registerDebugFlags_1_0,registerDebugFlags@VERS_1.0");
 int registerDebugFlags_1_1(const DebugFlags *dbgFlags) {
     return registerDebugFlagsEx(dbgFlags,1.1);
 }
+/* new function available in the DSO and the static library */
 #if defined(__pic__) || defined(__PIC__) || defined(PIC)
 asm(".symver registerDebugFlags_1_1,registerDebugFlags@@VERS_1.1");
 #else /* defined(__pic__) || defined(__PIC__) || defined(PIC) */
@@ -545,6 +547,7 @@ extern registerDebugFlags(const DebugFlags *dbgFlags) __attribute((alias("regist
 int registerLibraryDebugFlags_1_0(const DebugFlags *dbgFlags) {
     return registerLibraryDebugFlagsEx(dbgFlags,1.0);
 }
+/* function only available in the DSO to keep compatibility with the previous release */
 #if defined(__pic__) || defined(__PIC__) || defined(PIC)
 asm(".symver registerLibraryDebugFlags_1_0,registerLibraryDebugFlags@VERS_1.0");
 #endif  /* defined(__pic__) || defined(__PIC__) || defined(PIC) */
@@ -553,6 +556,7 @@ asm(".symver registerLibraryDebugFlags_1_0,registerLibraryDebugFlags@VERS_1.0");
 int registerLibraryDebugFlags_1_1(const DebugFlags *dbgFlags) {
     return registerLibraryDebugFlagsEx(dbgFlags,1.1);
 }
+/* new function available in the DSO and the static library */
 #if defined(__pic__) || defined(__PIC__) || defined(PIC)
 asm(".symver registerLibraryDebugFlags_1_1,registerLibraryDebugFlags@@VERS_1.1");
 #else /* defined(__pic__) || defined(__PIC__) || defined(PIC) */
@@ -664,7 +668,7 @@ static __inline int getPID(const char *name, pid_t *PIDS,unsigned int *nbPIDS) {
 */
 int listPIDSEx(const uid_t userID,const char *pattern, comparator comp, unsigned int displayFullName) {
     int error = EXIT_SUCCESS;
-    char userRootDirName[PATH_MAX];    
+    char userRootDirName[PATH_MAX];
     DIR *userRootDir = NULL;
 
     sprintf(userRootDirName,"/tmp/dbgFlags_%d",userID);
@@ -774,7 +778,7 @@ int displayFulldebugFlags(FILE *stream,FulldebugFlags *fullDbgFlag) {
     fprintf(stream,"Registered Name:%s\t Mask:0x%X\t Log Mask:0x%X\n"
         ,fullDbgFlag->dbgFlags.moduleName
         ,mask
-        ,fullDbgFlag->syslogMask);    
+        ,LOG_PRI(fullDbgFlag->syslogMask));
 
     /* program's flags'names */
     for(i=0;i<FLAGS_SIZE;i++) {        
@@ -908,7 +912,11 @@ static __inline int readLibrariesNames(int connected_socket,DbgFlagsCommand *cmd
                     default:
                         ERROR_MSG("receiveBuffer LibrariesNames error %d (%s)",error,strerror(error));
                     } /* switch(error) */
-                } while(EXIT_SUCCESS == error);                
+                } while(EXIT_SUCCESS == error);
+
+                if (EPIPE == error) {
+                    error = EXIT_SUCCESS;
+                }
 
                 free(buffer);
                 buffer = NULL;
@@ -1109,7 +1117,7 @@ int UDSTCPClient(ClientParameters *params) {
     if (uds_client_socket != -1) {
         char socket_name[PATH_MAX];                
         const uid_t userID = params->uid;
-        
+
         error = getSocketNameEx(userID,params->processName,params->pid,params->comp,socket_name);
         if (EXIT_SUCCESS == error) {    
             struct sockaddr_un remote;
@@ -1170,7 +1178,7 @@ int UDSTCPClient(ClientParameters *params) {
     return error;
 }
 
-#include "ModuleVersionInfo.h"
+#include <dbgflags/ModuleVersionInfo.h>
 MODULE_NAME(dbgFlagsUsingUnixDomainSocket);
 MODULE_AUTHOR(Olivier Charloton);
 MODULE_FILE_VERSION(1.1);

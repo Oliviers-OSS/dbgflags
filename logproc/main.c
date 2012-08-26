@@ -28,7 +28,11 @@
 #define LOG_OPTS  0 /*LOG_CONS|LOG_PERROR|LOG_PID*/
 #include <dbgflags/debug_macros.h>
 
-#include <ModuleVersionInfo.h>
+#include <dbgflags/ModuleVersionInfo.h>
+
+#ifndef COMMAND_LINE_SIZE
+#define COMMAND_LINE_SIZE 2048
+#endif /* COMMAND_LINE_SIZE */
 
 typedef struct cmdLineParameters_ {
   int facility;
@@ -274,6 +278,6 @@ MODULE_NAME(PROGRAM_NAME);
 PACKAGE_NAME_AUTOTOOLS;
 MODULE_AUTHOR_AUTOTOOLS;
 MODULE_VERSION(PROGRAM_VERSION);
-MODULE_FILE_VERSION(1.0);
+MODULE_FILE_VERSION(1.1);
 MODULE_DESCRIPTION(send process outputs to syslog);
 MODULE_COPYRIGHT(GPL);

@@ -12,69 +12,305 @@
 #include <sstream>
 #include <functional>
 #include <new>
+#include <memory>
 #include <cassert>
 #include <string>
 #include <syslog.h>
 #include <cstdio>
 #include <cstdlib>
+#include <pthread.h>
+
+#include <sys/syscall.h>
+
+#ifndef DEBUG_EOL
+#define DEBUG_EOL "\r\n"
+#endif /* DEBUG_EOL */
+
+/* define Branch prediction hints macros for GCC 4.0.0 and upper */
+#if (GCC_VERSION > 40000) /* GCC 4.0.0 */
+#ifndef likely
+#define likely(x)   __builtin_expect(!!(x),1)
+#endif /* likely */
+#ifndef unlikely
+#define unlikely(x) __builtin_expect(!!(x),0)
+#endif /* unlikely */
+#else
+#define likely(x)   (x)
+#define unlikely(x) (x)
+#endif /* GCC 4.0.0 */
+
+#include <dbgflags/loggers.h>
 
 typedef void (*loggerFct_t)(int priority, const char *format, ...);
 
+// loggers functor
 template <class characterType, loggerFct_t loggerFct, class traitsType = std::char_traits<characterType> >
- class Logger{
-
- public:
-     Logger(){}
-     void operator()(const int level, const std::basic_string<characterType,traitsType> &string) {
-         (*loggerFct)(level,string.c_str());
-     }
-     void operator()(const int level, const characterType *string) {
-         (*loggerFct)(level,string);
-     }
- };
-
-template <int level, class logger, class characterType, class traitsType = std::char_traits<characterType> >
-class loggerStreamBuffer : public std::basic_stringbuf<characterType,traitsType>  {
+class Logger {
 public:
+
+    Logger() {
+    }
+
+    void operator()(const int level, const std::basic_string<characterType, traitsType> &string) {
+        (*loggerFct)(level,string.c_str());
+    }
+
+    void operator()(const int level, const characterType *string) {
+        (*loggerFct)(level, string);
+    }
+};
+
+/*
+template <typename T, loggerFct_t loggerFct, typename Allocator = std::allocator<T> >
+class loggingAllocator {
+   private:
+      Allocator alloc;
+   public:
+      typedef typename Allocator::size_type size_type;
+      typedef typename Allocator::difference_type difference_type;
+      typedef typename Allocator::pointer pointer;
+      typedef typename Allocator::const_pointer const_pointer;
+      typedef typename Allocator::reference reference;
+      typedef typename Allocator::const_reference const_reference;
+      typedef typename Allocator::value_type value_type;
+
+      template <typename U> struct rebind {
+         typedef loggingAllocator<U,loggerFct,typename Allocator::template rebind<U>::other> other;
+      };
+
+      loggingAllocator() {
+      }
+
+      loggingAllocator(const loggingAllocator &src)
+         :alloc(src.alloc) {
+      }
+
+      template<typename U> loggingAllocator(const loggingAllocator<U,loggerFct,typename Allocator::template rebind<U>::other> &src)
+         :alloc(src.alloc) {
+      }
+
+      ~loggingAllocator() {
+      }
+
+      pointer address(reference x) const {
+         return alloc.address(x);
+      }
+
+      const_pointer address(const_reference x) const {
+         return alloc.address(x);
+      }
+
+      size_type max_size() const {
+         return alloc.max_size();
+      }
+
+      void construct(pointer p, const value_type &val) {
+         alloc.construct(p,val);
+         (*loggerFct)(LOG_DEBUG,"0x%X constructed"DEBUG_EOL,p);
+      }
+
+      void destroy(pointer p) {
+         alloc.destroy(p);
+         (*loggerFct)(LOG_DEBUG,"0x%X destroyed"DEBUG_EOL,p);
+      }
+
+      pointer allocate(size_type n, const void *hint = 0) {
+          pointer result = alloc.allocate(n,hint);
+          (*loggerFct)(LOG_DEBUG,"%u object(s) allocated (hint = 0x%X) @ 0x%X" DEBUG_EOL,n,hint,result);
+          return result;
+      }
+
+      void deallocate(pointer p,size_type n) {
+          alloc.deallocate(p,n);
+          (*loggerFct)(LOG_DEBUG,"0x%X (%u object(s)) deallocated" DEBUG_EOL,p,n);
+      }
+};
+
+template <typename T, loggerFct_t loggerFct1, typename Allocator1
+         ,typename U, loggerFct_t loggerFct2, typename Allocator2>
+bool operator==(const loggingAllocator<T,loggerFct1,Allocator1> &x,const loggingAllocator<U,loggerFct2,Allocator2> &y) {
+   return (x.alloc == y.alloc);
+}
+
+template <typename T, loggerFct_t loggerFct1, typename Allocator1
+         ,typename U, loggerFct_t loggerFct2, typename Allocator2>
+bool operator!=(const loggingAllocator<T,loggerFct1,Allocator1> &x,const loggingAllocator<U,loggerFct2,Allocator2> &y) {
+   return (x.alloc != y.alloc);
+}
+ */
+
+// to redirect a stream to a logger
+
+template <int level, class logger, class characterType, class traitsType = std::char_traits<characterType>/*, typename Allocator  = std::allocator<characterType >*/ >
+class loggerStreamBuffer : public std::basic_stringbuf<characterType, traitsType/*,Allocator*/> {
+public:
+
     loggerStreamBuffer() {
 
     }
+
     virtual ~loggerStreamBuffer() {
 
     }
 protected:
+
     virtual int sync() {
-        const std::basic_string<characterType,traitsType> string = std::basic_stringbuf<characterType,traitsType>::str();
+        const std::basic_string<characterType, traitsType> &string = std::basic_stringbuf<characterType, traitsType>::str(); //get its buffer's content
         logger selectedLogger;
-        selectedLogger(level,string);
-        std::basic_stringbuf<characterType,traitsType>::str(std::basic_string<characterType>());
+        selectedLogger(level, string); // log it
+        std::basic_stringbuf<characterType, traitsType>::str(std::basic_string<characterType > ()); // clear its buffer's content
         return 0;
     }
 private:
+
     loggerStreamBuffer(const loggerStreamBuffer& orig) {
         // copy not allowed
     }
 
 };
 
-template <int level, class logger, class characterType, class traitsType = std::char_traits<characterType> >
-class loggerStream : public std::basic_ostream<characterType,traitsType>  {
+// stream to logger: WARNING NOT THREAD SAFE (because basic_ostream is not), use the class below for example in multi threads context
+
+template <int level, class logger, class characterType, class traitsType = std::char_traits<characterType>/*, typename Allocator  = std::allocator<characterType >*/ >
+class loggerStream : public std::basic_ostream<characterType, traitsType> {
 public:
+
     loggerStream()
-        : std::basic_ostream<characterType,traitsType> (new loggerStreamBuffer<level,logger,characterType,traitsType>()){
-        }
+    : std::basic_ostream<characterType, traitsType> (new loggerStreamBuffer<level, logger, characterType, traitsType/*,Allocator*/>()) {
+    }
+
     ~loggerStream() {
-        delete std::basic_ostream<characterType,traitsType>::rdbuf();
+        delete std::basic_ostream<characterType, traitsType>::rdbuf();
     }
 private:
+
     loggerStream(const logger &orig) {
         // copy not allowed
     }
 };
 
+// facade to get thread safe streams using thread-specific data (TSD) (one per thread) to avoid synchronizastion between threads by their traces
+
+class TSDRawData {
+protected:
+    TSDRawData *TLSInterfacePtr;
+public:
+
+    TSDRawData() : TLSInterfacePtr(this) {
+    }
+
+    virtual ~TSDRawData() {
+    }
+};
+
+static void freeTSDData(void *params) {
+    if (params != NULL) {
+        TSDRawData *TSDData = static_cast<TSDRawData *> (params);
+        if (TSDData != 0) {
+            delete TSDData;
+            //DEBUG_VAR(TSDData,"0x%X");
+            TSDData = 0;
+        }
+    }
+}
+
+template <class UnSafeThreadClass> class TLSInstanceOf {
+    pthread_key_t TLSKey;
+public:
+
+    class TSDData : public TSDRawData {
+    public:
+        UnSafeThreadClass *objectPtr;
+
+        TSDData(UnSafeThreadClass *obj) : objectPtr(obj) {
+	  //DEBUG_VAR(objectPtr,"0x%X (allocated)");
+        }
+
+        virtual ~TSDData() {
+            if (objectPtr != 0) {
+                delete objectPtr;
+                //DEBUG_VAR(objectPtr,"0x%X (freed)");
+                objectPtr = 0;
+            }
+        }
+    };
+private:
+
+    class mutexMgr {
+        pthread_mutex_t mutex;
+    public:
+
+        mutexMgr(pthread_mutex_t &m) : mutex(m) {
+            int error = pthread_mutex_lock(&mutex);
+        }
+
+        ~mutexMgr() {
+            int error = pthread_mutex_unlock(&mutex);
+        }
+    };
+
+    UnSafeThreadClass * allocateNewTLSInstance() {
+        TSDData *data = 0;
+#ifndef DUMA_CPP_OPERATORS_DECLARED
+        UnSafeThreadClass *ptr = new(std::nothrow) UnSafeThreadClass();
+        if (ptr) {
+            //DEBUG_VAR(ptr,"0x%X");
+            data = new(std::nothrow) TSDData(ptr);
+            //DEBUG_VAR(data,"0x%X");
+        } else {
+	    const pid_t tid = (pid_t) syscall (SYS_gettid);
+            //ERROR_MSG("failed to allocate %d bytes for a new instance of class UnSafeThreadClass for thread %u",sizeof(UnSafeThreadClass),gettid());
+	    //LOGGER(LOG_ERR," [ %s ("  __FILE__ ":%d)]:" "failed to allocate %d bytes for a new instance of class UnSafeThreadClass for thread %u" DEBUG_EOL,__FUNCTION__,__LINE__,sizeof(UnSafeThreadClass),tid);
+        }
+#else
+        UnSafeThreadClass *ptr = new UnSafeThreadClass();
+        data = new TSDData(ptr);
+#endif
+        if (data != NULL) {
+            const int error = pthread_setspecific(TLSKey, static_cast<const void*> (data));
+        } else {
+	    const pid_t tid = (pid_t) syscall (SYS_gettid);
+            //ERROR_MSG("failed to allocate %d bytes for a new instance of TSDData for thread ",sizeof(TSDData));
+	    //LOGGER(LOG_ERR," [ %s ("  __FILE__ ":%d)]:" "failed to allocate %d bytes for a new instance of class UnSafeThreadClass for thread %u" DEBUG_EOL,__FUNCTION__,__LINE__,sizeof(TSDData),tid);
+        }
+        return ptr;
+    }
+
+public:
+
+    TLSInstanceOf() : TLSKey(0) {
+        int error = pthread_key_create(&TLSKey, ::freeTSDData);
+        if (0 == error) {
+            allocateNewTLSInstance();
+        }
+    }
+
+    ~TLSInstanceOf() {
+        if (TLSKey != 0) {
+            UnSafeThreadClass *ptr = static_cast<UnSafeThreadClass *> (pthread_getspecific(TLSKey));
+            delete ptr;
+            pthread_key_delete(TLSKey);
+        }
+    }
+
+    UnSafeThreadClass &getInstance() {
+        TSDData *data = static_cast<TSDData *> (pthread_getspecific(TLSKey));
+        UnSafeThreadClass *tlsPtr = 0;
+        if (unlikely(0 == data)) {
+                tlsPtr = allocateNewTLSInstance();
+        } else {
+            tlsPtr = data->objectPtr;
+        }
+        //DEBUG_VAR(tlsPtr,"0x%X");
+        return *tlsPtr;
+    }
+};
+
+// FunctionCalls
+
 template <class characterType, size_t maxSize = 1024, class traitsType = std::char_traits<characterType> >
 class traceFunctionCallStaticBufferPolicy {
-	characterType trace[maxSize];
+    characterType trace[maxSize];
 public:
 	traceFunctionCallStaticBufferPolicy() {
 	}
@@ -98,99 +334,110 @@ public:
 };
 
 template <class characterType, size_t maxSize>
-inline std::basic_ostream<characterType,std::char_traits<characterType> > & operator<< (std::basic_ostream<characterType,std::char_traits<characterType> > &s, const traceFunctionCallStaticBufferPolicy<characterType,maxSize,std::char_traits<characterType> > &b) {
-	s << b.get();
-	return s;
+inline std::basic_ostream<characterType, std::char_traits<characterType> > & operator<<(std::basic_ostream<characterType, std::char_traits<characterType> > &s, const traceFunctionCallStaticBufferPolicy<characterType, maxSize, std::char_traits<characterType> > &b) {
+    s << b.get();
+    return s;
 };
 
 template <class characterType, class traitsType = std::char_traits<characterType> >
 class traceFunctionCallStdStringPtrPolicy {
-	std::basic_string<characterType,traitsType> *trace;
+    std::basic_string<characterType, traitsType> *trace;
 public:
-	traceFunctionCallStdStringPtrPolicy()
-		:trace(0) {
-	}
-	void set(const char *functionName, const char *fileName, const unsigned int lineNumber) {
-		assert(0 == trace);
-		trace = new (std::nothrow) std::basic_string<characterType,traitsType>();
-		if (trace) {
-			std::basic_ostream<characterType,characterType> os;
-			os << functionName << " (" << fileName << ':' << lineNumber << ')';
-			*trace = os.str();
-		}
-	}
-	void set(const char *functionName) {
-		assert(0 == trace);
-		trace = new (std::nothrow) std::basic_string<characterType,traitsType>(functionName);		
-	}
-	void set(const char *fileName, const unsigned int lineNumber) {
-		assert(0 == trace);
-		trace = new (std::nothrow) std::basic_string<characterType,traitsType>();
-		if (trace) {
-			std::basic_ostream<characterType,characterType> os;
-			os << "(" << fileName << ':' << lineNumber << ')';
-			*trace = os.str();
-		}
-	}
-	const std::basic_string<characterType,traitsType>& get() const {
-                assert(trace != 0);
-                return *trace;
-	}
-	~traceFunctionCallStdStringPtrPolicy() {
-		if (trace) {
-			delete trace;
-			trace = 0;
-	  	}
-	}
-        bool isNotNull() const {
-          return (trace != 0);
+
+    traceFunctionCallStdStringPtrPolicy()
+    : trace(0) {
+    }
+
+    void set(const char *functionName, const char *fileName, const unsigned int lineNumber) {
+        assert(0 == trace);
+        trace = new (std::nothrow) std::basic_string<characterType, traitsType > ();
+        if (trace) {
+            std::basic_ostream<characterType, characterType> os;
+            os << functionName << " (" << fileName << ':' << lineNumber << ')';
+            *trace = os.str();
         }
+    }
+
+    void set(const char *functionName) {
+        assert(0 == trace);
+        trace = new (std::nothrow) std::basic_string<characterType, traitsType > (functionName);
+    }
+
+    void set(const char *fileName, const unsigned int lineNumber) {
+        assert(0 == trace);
+        trace = new (std::nothrow) std::basic_string<characterType, traitsType > ();
+        if (trace) {
+            std::basic_ostream<characterType, characterType> os;
+            os << "(" << fileName << ':' << lineNumber << ')';
+            *trace = os.str();
+        }
+    }
+
+    const std::basic_string<characterType, traitsType>& get() const {
+        assert(trace != 0);
+        return *trace;
+    }
+
+    ~traceFunctionCallStdStringPtrPolicy() {
+        if (trace) {
+            delete trace;
+            trace = 0;
+        }
+    }
+
+    bool isNotNull() const {
+        return (trace != 0);
+    }
 };
 
 template <class characterType>
-inline std::basic_ostream<characterType,std::char_traits<characterType> > & operator<< (std::basic_ostream<characterType,std::char_traits<characterType> > &s, const traceFunctionCallStdStringPtrPolicy<characterType,std::char_traits<characterType> > &b) {
-	if (b.isNotNull()) {
-		s << b.get();
-	} else {
-		s << "*** memory error ***";
-	}
-	return s;
+inline std::basic_ostream<characterType, std::char_traits<characterType> > & operator<<(std::basic_ostream<characterType, std::char_traits<characterType> > &s, const traceFunctionCallStdStringPtrPolicy<characterType, std::char_traits<characterType> > &b) {
+    if (b.isNotNull()) {
+        s << b.get();
+    } else {
+        s << "*** memory error ***";
+    }
+    return s;
 };
 
-template <class logger, class characterType = char, class storagePolicy = traceFunctionCallStaticBufferPolicy<characterType,255>, class traitsType = std::char_traits<characterType> >
+template <class logger, class characterType = char, class storagePolicy = traceFunctionCallStaticBufferPolicy<characterType, 255 >, class traitsType = std::char_traits<characterType> >
 class traceFunctionCall {
     logger *loggerStream;
-    bool   functionCallTraceEnabled;
+    bool functionCallTraceEnabled;
     storagePolicy trace;
 public:
-    traceFunctionCall(logger &stream,const char *functionName, const char *fileName, const unsigned int lineNumber, const bool enabled = true)
-	    :loggerStream(&stream)
-            ,functionCallTraceEnabled(enabled) {
-	if (functionCallTraceEnabled) {
-		trace.set(functionName,fileName,lineNumber);
-                stream << "+" << trace << std::endl;
-	}
+
+    traceFunctionCall(logger &stream, const char *functionName, const char *fileName, const unsigned int lineNumber, const bool enabled = true)
+    : loggerStream(&stream)
+    , functionCallTraceEnabled(enabled) {
+        if (functionCallTraceEnabled) {
+            trace.set(functionName, fileName, lineNumber);
+            stream.getInstance() << "+" << trace << std::endl;
+        }
     }
-    traceFunctionCall(logger &stream,const char *functionName, const bool enabled = true)
-	    :loggerStream(&stream)
-            ,functionCallTraceEnabled(enabled) {
-	if (functionCallTraceEnabled) {
-	        trace.set(functionName);
-                stream << "+" << trace << std::endl;
-	}
+
+    traceFunctionCall(logger &stream, const char *functionName, const bool enabled = true)
+    : loggerStream(&stream)
+    , functionCallTraceEnabled(enabled) {
+        if (functionCallTraceEnabled) {
+            trace.set(functionName);
+            stream.getInstance() << "+" << trace << std::endl;
+        }
     }
-    traceFunctionCall(logger &stream,const char *fileName, const unsigned int lineNumber, const bool enabled = true)
-	    :loggerStream(&stream)
-            ,functionCallTraceEnabled(enabled) {
-	if (functionCallTraceEnabled) {
-	        trace.set(fileName,lineNumber);
-                stream << "+" << trace << std::endl;
-	}
+
+    traceFunctionCall(logger &stream, const char *fileName, const unsigned int lineNumber, const bool enabled = true)
+    : loggerStream(&stream)
+    , functionCallTraceEnabled(enabled) {
+        if (functionCallTraceEnabled) {
+            trace.set(fileName, lineNumber);
+            stream.getInstance() << "+" << trace << std::endl;
+        }
     }
+
     ~traceFunctionCall() {
-	if (functionCallTraceEnabled) {
-        	(*loggerStream) << "-" << trace << std::endl;
-	}
+        if (functionCallTraceEnabled) {
+            (*loggerStream).getInstance() << "-" << trace << std::endl;
+        }
     }
 };
 
