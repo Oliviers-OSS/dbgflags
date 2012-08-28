@@ -10,7 +10,7 @@
 //#include <dumapp.h>
 
 static const unsigned int nb_threads(150);
-static const unsigned int nb_loop(2000);
+static const unsigned int nb_loop(200);
 
  emergencyLogger    logEmergency;
  alertLogger         logAlert;
@@ -278,7 +278,7 @@ int main(int argc, char *argv[]) {
    int error = EXIT_SUCCESS;
    pthread_t threads[nb_threads];
    unsigned int i;
-   openLogFile(argv[0], LOG_CONS|LOG_PERROR| LOG_PID|LOG_TID|LOG_RDTSC|LOG_FILE_HISTO, LOG_USER);
+   openLogFile(argv[0], /*LOG_CONS|*/LOG_PERROR| LOG_PID|LOG_TID|LOG_RDTSC|LOG_FILE_HISTO, LOG_USER);
    setFileLoggerMaxSize(1*1024*1024);
    for(i=0;i<nb_threads;i++) {
       DEBUG_CPP_VAR(i);

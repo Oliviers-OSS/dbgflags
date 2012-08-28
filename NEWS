@@ -1,1 +1,12 @@
-initial version
+- A few corrections to build on a Debian 6 64bits.
+- pkgconfig test program build corrected when the library hase not been already installed.
+- the gettid internal function use the syscall function (instead of the "int 0x80") when building on a 2.6.x Linux kernel.
+- Buffer overflow correction in consoleLogger & fileLogger (use a stream buffer now instead of a buffer on the stack).
+  and new test programs to check the library's logger with message of size up to 4096 bytes.
+- thread cancellation points management in fileLogger added (useless in the consoleLogger).
+- added instructions to free the used buffer in the thread cancellation points management of the syslogex logger (glibc bug ?)
+- logger sending trace to one file per thtread
+
+Remarques:
+- Files'repository moved to GIT and "public" version published to github
+- using redmine to manage evolutions (ER) and anomalies reports (AR).

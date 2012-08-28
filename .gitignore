@@ -42,4 +42,8 @@ Makefile
 # tmp & log files
 *.log
 
-
+# extra files (not part of the public open source release for copyrights reasons).
+# Anyway it's useless for you needs: it contains an inlined adaptor interface to 
+# a legacy trace layer of a middleware used by existing components of a project
+/extras
+/tests/extras
