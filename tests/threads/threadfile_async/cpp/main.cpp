@@ -9,8 +9,8 @@
 
 //#include <dumapp.h>
 
-static const unsigned int nb_threads(150);
-static const unsigned int nb_loop(2000);
+static const unsigned int nb_threads(100);
+static const unsigned int nb_loop(100);
 const char *program = NULL;
 
  emergencyLogger    logEmergency;
@@ -261,7 +261,7 @@ void a(void *params) {
 }
 
 static void __inline initializeLogger(const unsigned int n)  {
-    const int logstat = LOG_PID|LOG_TID|LOG_RDTSC;
+    const int logstat = LOG_PID|LOG_TID|LOG_RDTSC|LOG_FILE_WITHOUT_SYNC;
     const int logfac = LOG_USER;
     const char *identity = program;
 

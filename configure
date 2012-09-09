@@ -875,7 +875,7 @@ enable_fast_install
 with_gnu_ld
 enable_libtool_lock
 enable_debug
-enable_profiling
+enable_profiling_hooks
 enable_large_files_support
 enable_XML_configuration_file
 enable_tests_programs_build
@@ -15247,9 +15247,9 @@ $as_echo "#define NDEBUG 1" >>confdefs.h
 fi
 
 # trace call / profiling
-# Check whether --enable-profiling was given.
-if test "${enable_profiling+set}" = set; then :
-  enableval=$enable_profiling; case "${enableval}" in
+# Check whether --enable-profiling-hooks was given.
+if test "${enable_profiling_hooks+set}" = set; then :
+  enableval=$enable_profiling_hooks; case "${enableval}" in
          yes) enable_profiling_hooks="yes";;
           no) enable_profiling_hooks="no" ;;
            *) as_fn_error $? "bad value ${enableval} for --enable-profiling-hooks" "$LINENO" 5  ;;
@@ -16111,7 +16111,7 @@ esac
 
 fi
 
-for ac_func in atexit gettimeofday localtime_r memmove mempcpy memset mkdir socket strcasecmp strncasecmp strrchr strstr strtol strtoul connect dup2 select strchr strerror clock_gettime
+for ac_func in atexit gettimeofday localtime_r memmove mempcpy memset mkdir socket strcasecmp strncasecmp strrchr strstr strtol strtoul connect dup2 select strchr strerror clock_gettime fdatasync
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"

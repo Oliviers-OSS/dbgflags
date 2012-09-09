@@ -49,9 +49,12 @@ void vconsoleLogger(int priority, const char *format, va_list optional_arguments
 /*
  * logger to files
  */
-#define LOG_FILE_ROTATE     0x200
-#define LOG_FILE_HISTO      0x400
-#define LOG_FILE_DURATION  0x800
+#define LOG_FILE_ROTATE                0x0200
+#define LOG_FILE_HISTO                 0x0400
+#define LOG_FILE_DURATION              0x0800
+#define LOG_FILE_WITHOUT_SYNC          0x1000
+#define LOG_FILE_SYNC_ON_ERRORS_ONLY   0x2000
+
 void openLogFile(const char *ident, int logstat, int logfac) NO_PROFILING;
 void fileLogger(int priority, const char *format, ...) CHECK_PARAMS(2,3) CHECK_NON_NULL_PTR(2) NO_PROFILING;
 void vfileLogger(int priority, const char *format, va_list optional_arguments) CHECK_NON_NULL_PTR(2) NO_PROFILING;
@@ -61,7 +64,8 @@ int setFileLoggerDirectory(const char *directory) CHECK_NON_NULL_PTR(1) NO_PROFI
 void closeLogFile(void) NO_PROFILING;
 
 /*
- * logger to files using AIO POSIX API
+ * logger to files using AIO POSIX API (
+ * WARNING: TODO, don't use, this entries are for the ABI compatibility only (RFU)
  */
 void aioOpenLogFile(const char *ident, int logstat, int logfac) NO_PROFILING;
 void aioFileLogger(int priority, const char *format, ...) CHECK_PARAMS(2,3) CHECK_NON_NULL_PTR(2) NO_PROFILING;

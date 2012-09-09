@@ -92,7 +92,7 @@ VERS_1.3 {
         openLogThreadFile;
         threadFileLogger;
         vthreadFileLogger;
-        setthreadFileLoggerMaxSize;
+        setThreadFileLoggerMaxSize;
         setThreadFileLoggerMaxDuration;
         setThreadFileLoggerDirectory;
         closeLogThreadFile;

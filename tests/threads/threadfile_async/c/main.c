@@ -11,7 +11,7 @@
 const char *program = NULL;
 
 static void __inline initializeLogger(const unsigned int n)  {
-    const int logstat = LOG_PID|LOG_TID|LOG_RDTSC;
+    const int logstat = LOG_PID|LOG_TID|LOG_RDTSC|LOG_FILE_WITHOUT_SYNC;
     const int logfac = LOG_USER;
     const char *identity = program;
 
