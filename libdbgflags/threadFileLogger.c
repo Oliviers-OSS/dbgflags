@@ -99,6 +99,9 @@ typedef struct ThreadFileData_ {
 	int logFile; /* file descriptor */
 	size_t fileSize; /* in bytes */
 	time_t startTime; /* UNIX EPOCH time */
+#ifdef FILESYSTEM_PAGE_CACHE_FLUSH_THRESHOLD
+	size_t currentPageCacheMaxSize; /* max size of the current file system page cache */
+#endif /* FILESYSTEM_PAGE_CACHE_FLUSH_THRESHOLD */
 } ThreadFileData;
 
 static inline void initThreadFileData(ThreadFileData *data) {
@@ -113,6 +116,9 @@ static inline void initThreadFileData(ThreadFileData *data) {
 	data->logFile = -1;
 	data->fileSize = 0;
 	data->startTime = 0;
+#ifdef FILESYSTEM_PAGE_CACHE_FLUSH_THRESHOLD
+	data->currentPageCacheMaxSize = 0;
+#endif /* FILESYSTEM_PAGE_CACHE_FLUSH_THRESHOLD */
 }
 
 /* TSD key used to store information used to manage on file per thread */
@@ -487,6 +493,19 @@ void vthreadFileLogger(int priority, const char *format, va_list optional_argume
 							}
 						} /* (LOG_PRI(priority) <= LOG_ERR) */
 						threadFileData->fileSize += written;
+
+#ifdef FILESYSTEM_PAGE_CACHE_FLUSH_THRESHOLD
+						threadFileData->currentPageCacheMaxSize += written;
+						if (threadFileData->currentPageCacheMaxSize >= FILESYSTEM_PAGE_CACHE_FLUSH_THRESHOLD) {
+							if (likely(posix_fadvise(threadFileData->logFile, 0,0,POSIX_FADV_DONTNEED) == 0)) {
+								threadFileData->currentPageCacheMaxSize = 0;
+								DEBUG_MSG("used file system cache allowed to be flushed (size was %u)",threadFileData->currentPageCacheMaxSize);
+							} else {
+								/* tell the OS that log message bytes could be released from the file system cache */
+								NOTICE_MSG("posix_fadvise to %s error %d (%m), current page cache max size is %u",threadFileData->fullFileName,error,threadFileData->currentPageCacheMaxSize);
+							}
+						}
+#endif /* FILESYSTEM_PAGE_CACHE_FLUSH_THRESHOLD */
 
 						if ((LOG_FILE_ROTATE & LogStat) || (LOG_FILE_HISTO & LogStat)) {
 							if (threadFileData->fileSize >= threadFileData->maxSize) {

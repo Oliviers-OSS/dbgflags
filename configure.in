@@ -108,6 +108,13 @@ if test "$enable_XMLConfigFile" = "yes"; then
         AC_CHECK_LIB([expat], [XML_ParserCreate])
 fi
 
+# filesystem page cache flush manager parameter
+withval=""
+AC_ARG_WITH(filesystem-cache-flush-every,[  --with-filesystem-cache-flush-every=<size> set filesystem page cache flush])
+if test "x${withval}" != x; then
+   AC_DEFINE_UNQUOTED(FILESYSTEM_PAGE_CACHE_FLUSH_THRESHOLD,${withval},[set filesystem page cache flush every n bytes written.])
+fi
+
 # tests programs
 AC_ARG_ENABLE(tests-programs-build,[  --enable-tests-programs-build enable building of the library's tests programs (default is no) ],
         [case "${enableval}" in

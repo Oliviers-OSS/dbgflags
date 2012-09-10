@@ -31,3 +31,5 @@ x.x.x - Two new flags taken into account by the loggers to file:
          _ LOG_FILE_WITHOUT_SYNC: to disable all synchronous write to the disk.
          _ LOG_FILE_SYNC_ON_ERRORS_ONLY to disable all synchronous write to the disk except when the message is upper or equal to the error level.         
          Remark: the loggers to files default writing strategy is still synchronous write (O_SYNC flags set, cf. open(2) for details).
+      - New build option (--with-filesystem-cache-flush-every) to set a threshold to try to reduce log write to file(s) footprint in the file system page cache.
+        

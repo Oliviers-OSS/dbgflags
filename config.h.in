@@ -3,6 +3,9 @@
 /* Define to 1 if the `closedir' function returns void instead of `int'. */
 #undef CLOSEDIR_VOID
 
+/* set filesystem page cache flush every n bytes written. */
+#undef FILESYSTEM_PAGE_CACHE_FLUSH_THRESHOLD
+
 /* Define to 1 if you have the `atexit' function. */
 #undef HAVE_ATEXIT
 
