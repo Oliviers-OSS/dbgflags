@@ -395,11 +395,11 @@ void vfileLogger(int priority, const char *format, va_list optional_arguments) {
 						static size_t currentPageCacheMaxSize = 0;
 						currentPageCacheMaxSize += written;
 						if (currentPageCacheMaxSize >= FILESYSTEM_PAGE_CACHE_FLUSH_THRESHOLD) {
+							/* tell the OS that log message bytes could be released from the file system cache */
 							if (likely(posix_fadvise(logFile, 0,0,POSIX_FADV_DONTNEED) == 0)) {
 								currentPageCacheMaxSize = 0;
 								DEBUG_MSG("used file system cache allowed to be flushed (size was %u)",currentPageCacheMaxSize);
 							} else {
-								/* tell the OS that log message bytes could be released from the file system cache */
 								NOTICE_MSG("posix_fadvise to %s error %d (%m), current page cache max size is %u",fullFileName,error,currentPageCacheMaxSize);
 							}
 						}
