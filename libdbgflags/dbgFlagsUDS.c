@@ -95,6 +95,7 @@ static __inline Comparators comparatorToComparator(const comparator fct) {
     } else {
         c = eError;
     }
+    return c;
 }
 
 static __inline comparator comparatorFunction(const Comparators c) {
