@@ -802,7 +802,7 @@ static int getXMLConfigurationFileParameters(const configurationXMLFileParams *X
                         if (XML_Parse(parser, Buffer, length, done) == XML_STATUS_ERROR) {
                             enum XML_Error XMLError = XML_GetErrorCode(parser);
                             error = -1;
-                            ERROR_MSG("XML Parse error at line %d in file:\n%s", XML_GetCurrentLineNumber(parser), filename, XML_ErrorString(XMLError));
+                            ERROR_MSG("XML Parse error at line %d in file %s: %s", XML_GetCurrentLineNumber(parser), filename, XML_ErrorString(XMLError));
                             break;
                         }
                     } /* while( (n = read(file,Buffer,sizeof(Buffer))) > 0) */
