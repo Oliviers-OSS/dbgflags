@@ -101,7 +101,7 @@ static inline configuration_file_data* configuration_file_data_find(configuratio
     return element;
 }
 
-static inline int configuration_file_data_init(configuration_file_data *data) {
+static inline void configuration_file_data_init(configuration_file_data *data) {
     data->section[0] = '\0';
     data->elements = NULL;
     data->next = NULL;
