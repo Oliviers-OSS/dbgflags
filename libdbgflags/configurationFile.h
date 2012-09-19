@@ -331,7 +331,7 @@ static inline int readConfigurationFile(const char *filename, configuration_file
                             cursor++;
                         }
                         } else {
-                            ERROR_MSG("error on line %d in configuration file %s, character [ is only allowed to start a section declaration");
+                            ERROR_MSG("error on line %d in configuration file %s, character [ is only allowed to start a section declaration",line,filename);
                             *cursor = '\0'; /* to move to the next line */
                             key = NULL; /* to cancel the current line's data if any */
                         }
