@@ -15,7 +15,7 @@ unsigned int function(const unsigned int a,const unsigned  int b) {
    unsigned int s = 0;
    for(i=0;i<b;i++) {
       s += a;
-      syslog(LOG_DEBUG,"[ %s (" __FILE__ ":%d )]: s = ",__FUNCTION__,__LINE__,s);
+      syslog(LOG_DEBUG,"[ %s (" __FILE__ ":%d )]: s = %s",__FUNCTION__,__LINE__,s);
    }
    return s;
 }
@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
 
   for(i=0;i<n;i++) {
      r = function(4,n);
-     syslog(LOG_DEBUG,"[ %s (" __FILE__ ":%d )]: r = ",__FUNCTION__,__LINE__,r);
+     syslog(LOG_DEBUG,"[ %s (" __FILE__ ":%d )]: r = %d",__FUNCTION__,__LINE__,r);
   }
 
   /*if (getrusage(RUSAGE_SELF,&used) == 0) {
