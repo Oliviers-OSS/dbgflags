@@ -62,6 +62,11 @@ static __inline void EndUDSServer(ProcDebugFlagsEntry *dbgFlags) {
         close(dbgFlags->server.uds_srv_socket); /* this will end the server loop in error */
         dbgFlags->server.uds_srv_socket = -1;
     }
+    /* AR #14: free thread allocated resources for the UDS server. */
+    const int error = pthread_detach(dbgFlags->server.thread);
+    if (error != 0) {
+    	ERROR_MSG("pthread_detach error %d",error);
+    }
 }
 
 #define STOP_UDSSRV SIGUSR2
