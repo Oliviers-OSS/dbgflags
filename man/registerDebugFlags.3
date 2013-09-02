@@ -1,0 +1,81 @@
+.\" Written  Oct 2012 by Olivier Charloton (oliviers.open.source.softwares@gmail.com)
+.\" heavily based on the work of Steve Greenland (stevegr@neosoft.com) on syslog man.
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.TH REGISTERDEBUGFLAGS 3 2012-10-06 "dbgflags" "Dbgflags Programmer's Manual"
+.SH NAME
+registerDebugFlags, registerLibraryDebugFlags \- to register DebugFlags of a program or library.
+.PP
+unregisterDebugFlags \- to unregister them.
+.SH SYNOPSIS
+.B #include <dbgflags/dbgflags.h>
+.sp
+ #define MAX_DEBUGFLAGS_NAME_SIZE    32
+ #define FLAGS_SIZE                  32 
+ #define MAX_CUSTOM_CMD_AND_PARAMS  127
+.sp
+ typedef void (*customHelpCommand)(FILE *stream);
+.sp
+ typedef int (*customCommandsHandler)(int argc, char *argv[],FILE *stream);
+.sp
+ typedef struct _DebugFlagsCustomCommands {
+    customHelpCommand customHelpCmd;    
+    customCommandsHandler customCmdHandler; 
+ } DebugFlagsCustomCommands;
+.sp
+ typedef struct _DebugFlags {
+    char moduleName[MAX_DEBUGFLAGS_NAME_SIZE];
+    char flagsNames[FLAGS_SIZE][MAX_DEBUGFLAGS_NAME_SIZE];
+    unsigned int mask;
+    DebugFlagsCustomCommands customCommands; 
+ } DebugFlags;
+.sp
+.BI "int registerDebugFlags(const DebugFlags *"dbgFlags ");"
+.sp
+.BI "int registerLibraryDebugFlags(const DebugFlags *"dbgFlags ");"
+.sp
+.BI "int unregisterDebugFlags(const DebugFlags *"dbgFlags ");"
+
+.SH DESCRIPTION
+The DebugFlags C structure allows:
+ - setting a name to identify the module (process or library).
+ - name each flag to easily handle trace activation and deactivation in some part of the code using the zo tools.
+ - set a custom commands handler to get additional information. 
+  Remark: custom commands   
+.B must 
+.B   not 
+.B change 
+the process'state, it's aim is not to provide an IPC.
+  - set a custom command handler help function to list them and explains their use.
+.PP 
+ It's up to the developer to manage the meaning and use of the flags, one by one, by groups... 
+ Some of them could be use to add levels for example instead of to "identify" some part of the code. 
+ The aim of this part of the library is to provide an easy way to manage traces, not to tell you what to do. It's up to you to decide how to handle the flags because the program and its logs will be yours and only you could known how to use them to help you to know what happens, what should be logged and when, what you need for debug.
+    
+.BR registerDebugFlags ()
+Register the program's DebugFlags data.
+The
+.I DebugFlags
+argument contains
+
+.BR registerLibraryDebugFlags ()
+
+.BR unregisterDebugFlags ()

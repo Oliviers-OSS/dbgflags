@@ -53,14 +53,15 @@ int ctxLogInit(void) {
 void ctxLogUnInit(void) {
     int error = pthread_mutex_lock(&ctxCursorLock);
     if (EXIT_SUCCESS == error) {
-	if (ctxLogMemoryBuffer != NULL) {
-           free(ctxLogMemoryBuffer);
-           ctxLogWritePos = ctxLogMemoryBuffer = NULL;
-	}
-        error = pthread_mutex_unlock(&ctxCursorLock);
-        if (error != 0) {
-            ERROR_MSG("pthread_mutex_unlock ctxCursorLock error %d (%s)",error,strerror(error));
-        }
+		if (ctxLogMemoryBuffer != NULL) {
+			   free(ctxLogMemoryBuffer);
+			   ctxLogWritePos = ctxLogMemoryBuffer = NULL;
+		}
+
+		error = pthread_mutex_unlock(&ctxCursorLock);
+		if (error != 0) {
+			ERROR_MSG("pthread_mutex_unlock ctxCursorLock error %d (%s)",error,strerror(error));
+		}
     } else {
         ERROR_MSG("pthread_mutex_lock memLogLock error %d (%s)",error,strerror(error));
     }

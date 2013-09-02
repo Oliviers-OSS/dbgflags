@@ -84,6 +84,9 @@ static char sccsid[] = "@(#)syslogex based on syslog.c	8.4 (Berkeley) 3/18/94";
 
 #include <dbgflags/dbgflags.h>
 #define DEBUG_LOG_HEADER "syslogex"
+#ifdef LOGGER
+#undef LOGGER
+#endif
 #define LOGGER syslog
 #define LOG_OPTS  0 /*LOG_CONS|LOG_PERROR|LOG_PID*/
 #include <dbgflags/debug_macros.h>
@@ -824,9 +827,9 @@ static inline int sendChildrenOutputsToSyslog(const pid_t child, int stdoutReadP
                 } else if WIFSIGNALED(childStatus) {
                     const int signalNumber = WTERMSIG(childStatus);
                     if (WCOREDUMP(childStatus)) {
-                        NOTICE_MSG("child process %d terminated by signal %d core dumped", child, signalNumber);
+                        NOTICE_MSG("child process %d terminated by signal %d (core dumped)", child, signalNumber);
                     } else {
-                        NOTICE_MSG("child process %d terminated by signal %d core dumped", child, signalNumber);
+                        NOTICE_MSG("child process %d terminated by signal %d", child, signalNumber);
                     }
                 }
                 error = pthread_join(stdoutThread, &pthreadReturn);
@@ -866,9 +869,9 @@ static void sigChildHandler(int x) {
             } else if WIFSIGNALED(childStatus) {
                 const int signalNumber = WTERMSIG(childStatus);
                 if (WCOREDUMP(childStatus)) {
-                    NOTICE_MSG("child process %d terminated by signal %d core dumped", childId, signalNumber);
+                    NOTICE_MSG("child process %d terminated by signal %d (core dumped)", childId, signalNumber);
                 } else {
-                    NOTICE_MSG("child process %d terminated by signal %d core dumped", childId, signalNumber);
+                    NOTICE_MSG("child process %d terminated by signal %d", childId, signalNumber);
                 }
             }
             const ssize_t n = write(writeEventPipe, &childStatus, sizeof (childStatus));
@@ -1069,7 +1072,7 @@ int syslogproc(const char *cmd, char *argv[], const int option, const int facili
 MODULE_NAME(syslogex);
 MODULE_AUTHOR(Olivier Charloton);
 MODULE_VERSION(1.1);
-MODULE_FILE_VERSION(1.4);
+MODULE_FILE_VERSION(1.5);
 MODULE_DESCRIPTION(syslog extended);
 MODULE_COPYRIGHT(LGPL);
 

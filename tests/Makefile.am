@@ -1,2 +1,2 @@
 AUTOMAKE_OPTIONS = foreign
-SUBDIRS = perfs perfs_all_loggers main main_static main-dynamic main-dynamic-pkgconfig main-dynamic-xml threads big_messages
+SUBDIRS = perfs perfs_all_loggers main main_static main-dynamic main-dynamic-pkgconfig main-dynamic-xml threads big_messages printf_extensions_tests

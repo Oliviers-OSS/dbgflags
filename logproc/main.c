@@ -1,4 +1,4 @@
-#define identity  "conslog"
+#define identity  "logproc"
 #include "config.h"
 
 #include <stdio.h>
@@ -91,7 +91,7 @@ static inline int facilityLevel(const char *facilityString) {
       }
     } else if (strcasecmp("user",facilityString) == 0) {
        facility = LOG_USER;
-    } else if ((strncasecmp,"local",facilityString,5) == 0) {
+    } else if (strncasecmp("local",facilityString,5) == 0) {
        const int n = *(facilityString + 5) - '0';
        if ((n >=0) && (n < 8)) {
           facility = LOG_LOCAL0 + n;
@@ -216,6 +216,7 @@ static inline int parseCmdLine(int argc, char *argv[],cmdLineParameters *paramet
          exit(EXIT_SUCCESS);
          break;
        case '?':
+    	 DEBUG_VAR(optind,"%d");
          /* getopt_long already printed an error message.  */
          sprintf(errorMsg,"invalid parameter (%s) %d",optarg,optind);
          error = EINVAL;
@@ -228,6 +229,7 @@ static inline int parseCmdLine(int argc, char *argv[],cmdLineParameters *paramet
          break;
        } /* switch (optc) */
     } /* while (((optc = getopt_long (argc, argv, "f:o:e:hv", longopts, NULL)) != -1) && (EXIT_SUCCESS == error)) */
+    DEBUG_VAR(optind,"%d");
 
     /*if (EXIT_SUCCESS == error) {
        error = setExternalCmdLine(argc,argv,parameters);
@@ -239,17 +241,9 @@ static inline int parseCmdLine(int argc, char *argv[],cmdLineParameters *paramet
     return error;
 }
 
-static inline int cmdIndex(int argc, char *argv[]) {
-  int index = 0;
-  while( (index < argc) && ('-' == argv[index++][0]));
-  DEBUG_VAR(index,"%d");
-  return index;
-}
-
 int main(int argc, char *argv[]) {
   int error = EXIT_SUCCESS;
   cmdLineParameters params;
-  const int cmdPos = cmdIndex(argc,argv);
 
   openlogex(argv[0],LOG_CONS|LOG_PERROR|LOG_PID,LOG_USER);
   /* set default values */
@@ -262,9 +256,9 @@ int main(int argc, char *argv[]) {
 #endif
   params.cmdLine[0] = '\0';
 
-  error = parseCmdLine(cmdPos,argv,&params);
+  error = parseCmdLine(argc,argv,&params);
   if (EXIT_SUCCESS == error) {
-     if (cmdPos < argc) {
+     if (optind < argc) {
         syslogproc(argv[optind],argv+optind,params.options,params.facility,params.stdOutLogLevel,params.stdErrLogLevel);
      } else {
        printHelp(NULL);
@@ -278,6 +272,6 @@ MODULE_NAME(PROGRAM_NAME);
 PACKAGE_NAME_AUTOTOOLS;
 MODULE_AUTHOR_AUTOTOOLS;
 MODULE_VERSION(PROGRAM_VERSION);
-MODULE_FILE_VERSION(1.1);
+MODULE_FILE_VERSION(1.2);
 MODULE_DESCRIPTION(send process outputs to syslog);
 MODULE_COPYRIGHT(GPL);

@@ -8,6 +8,7 @@
 #include <pthread.h>
 #include <time.h>
 #include <fcntl.h>
+#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <linux/limits.h>
@@ -20,6 +21,9 @@
 #define LOGGER consoleLogger
 #define LOG_OPTS  0
 #define MAX_LOGTAG_SIZE	128
+#define LOG_EXTENSION 		".log"
+#define BAK_LOG_EXTENTION 	".bak"
+#define LONGER_EXTENSION	BAK_LOG_EXTENTION
 
 #ifdef _DEBUGFLAGS_H_
 static DebugFlags debugFlags = {
@@ -86,6 +90,7 @@ static char *fileDirectory = NULL;
 //static int LogMask = 0xff; /* mask of priorities to be logged */
 
 #include "filesUtils.h"
+#define LOG_TAG_USED	(1<<0) /* set when the LogTag has been used for the first time to build the file's name */
 
 typedef struct ThreadFileData_ {
 	int	LogStat;
@@ -95,9 +100,10 @@ typedef struct ThreadFileData_ {
 	char LogTag[MAX_LOGTAG_SIZE];		/* string to tag the entry with */
 	size_t maxSize; /* in bytes */
 	time_t maxDuration; /* in seconds */
-	int logFile; /* file descriptor */
+	int logFile; /* file's descriptor */
 	size_t fileSize; /* in bytes */
 	time_t startTime; /* UNIX EPOCH time */
+	unsigned int miscFlags;
 #ifdef FILESYSTEM_PAGE_CACHE_FLUSH_THRESHOLD
 	size_t currentPageCacheMaxSize; /* max size of the current file system page cache */
 #endif /* FILESYSTEM_PAGE_CACHE_FLUSH_THRESHOLD */
@@ -115,6 +121,7 @@ static inline void initThreadFileData(ThreadFileData *data) {
 	data->logFile = -1;
 	data->fileSize = 0;
 	data->startTime = 0;
+	data->miscFlags = 0x0;
 #ifdef FILESYSTEM_PAGE_CACHE_FLUSH_THRESHOLD
 	data->currentPageCacheMaxSize = 0;
 #endif /* FILESYSTEM_PAGE_CACHE_FLUSH_THRESHOLD */
@@ -161,6 +168,54 @@ static inline ThreadFileData *getThreadFileData() {
 	return threadFileData;
 }
 
+static __inline int renamePreviousLogFiles(ThreadFileData *threadFileData) {
+	int error = EXIT_SUCCESS;
+	DIR *logdir = opendir(directory);
+	if (logdir != NULL) {
+		int directoryfd = dirfd(logdir);
+		if (directoryfd != -1) {
+			struct dirent64 *directoryEntry = NULL;
+			char baseFileNameBuffer[PATH_MAX];
+			const pid_t tid = gettid();
+			const int n = sprintf(baseFileNameBuffer,"%s",processName);
+			while ((directoryEntry = readdir64(logdir)) != NULL) {
+				if ((DT_REG == directoryEntry->d_type) && (strncmp(baseFileNameBuffer,directoryEntry->d_name,n) == 0)) {
+					/* append the tag name just before the file's extension */
+					char newFileNameBuffer[PATH_MAX];
+					char *extensionStart = NULL;
+					char extension[5];
+					const char *oldFileNameBuffer = directoryEntry->d_name;
+					DEBUG_MSG("%s matchs %s",directoryEntry->d_name,baseFileNameBuffer);
+					strcpy(newFileNameBuffer,oldFileNameBuffer);
+					extensionStart = strrchr(newFileNameBuffer,'.');
+					if (extensionStart) {
+						strncpy(extension,extensionStart+1,sizeof(extension)-1);
+						extension[sizeof(extension)-1] = '\0';
+						sprintf(extensionStart,"_%s.%s",threadFileData->LogTag,extension);
+						DEBUG_VAR(newFileNameBuffer,"%s");
+						if (unlikely(renameat(directoryfd,oldFileNameBuffer,directoryfd,newFileNameBuffer) == -1)) {
+							error = errno;
+							ERROR_MSG("rename %s => %s error %d (%m)", oldFileNameBuffer, newFileNameBuffer, error);
+						}
+					} else {
+						error = ENOENT;
+						ERROR_MSG("extension not found in %d",newFileNameBuffer);
+					}
+				}
+			} //while ((directoryEntry = readdir64(logdir)) != NULL)
+		} else {
+			error = errno;
+			ERROR_MSG("dirfd on DIR %s error %d (%m)",directory,error);
+		}
+		closedir(logdir);
+		logdir = NULL;
+	} else {
+		error = errno;
+		ERROR_MSG("opendir %s error %d (%m)",directory,error);
+	}
+	return error;
+}
+
 static __inline int setThreadFullFileName(ThreadFileData *threadFileData) {
 	int error = EXIT_SUCCESS;
 	ASSERT(threadFileData);
@@ -177,53 +232,60 @@ static __inline int setThreadFullFileName(ThreadFileData *threadFileData) {
 		size_t n = strlen(threadFileData->fullFileName);
 		if (unlikely(0 == n)) {
 			/* first call, currently we don't manage the case the logger is used BEFORE the LogTag is set */
-			/*const pid_t tid = gettid();*/
 			if (threadFileData->LogTag[0]) {
-				sprintf(oldFileNameBuffer,"%s/%s_%u_%s.bak", directory, processName,tid,threadFileData->LogTag);
-				sprintf(fullFileName,"%s/%s_%u_%s.log", directory, processName,tid,threadFileData->LogTag);
+				if (unlikely(!(threadFileData->miscFlags & LOG_TAG_USED))) {
+					// first call with a LogTag set: try to rename all previously logfiles (if any)
+					error = renamePreviousLogFiles(threadFileData);
+					if (EXIT_SUCCESS == error) {
+						threadFileData->miscFlags |= LOG_TAG_USED;
+					}
+				}
+				sprintf(oldFileNameBuffer,"%s/%s_%u_%s"BAK_LOG_EXTENTION, directory, processName,tid,threadFileData->LogTag);
+				sprintf(fullFileName,"%s/%s_%u_%s"LOG_EXTENSION, directory, processName,tid,threadFileData->LogTag);
 			} else {
-				sprintf(oldFileNameBuffer, "%s/%s_%u.bak", directory, processName,tid);
-				sprintf(fullFileName,"%s/%s_%u.log", directory, processName,tid);
+				sprintf(oldFileNameBuffer, "%s/%s_%u"BAK_LOG_EXTENTION, directory, processName,tid);
+				sprintf(fullFileName,"%s/%s_%u"LOG_EXTENSION, directory, processName,tid);
 			}
 		} else {
 			/* compute the oldFileNameBuffer from the current file's name */
 			const size_t n = strlen(fullFileName);
 			char *suffixe = NULL;
 			strcpy(oldFileNameBuffer,fullFileName);
-			suffixe = oldFileNameBuffer + n - strlen(".log"); /* strlen will be computed during the compilation */
-			strcpy(suffixe,".bak");
+			suffixe = oldFileNameBuffer + n - strlen(LOG_EXTENSION); /* strlen will be computed during the compilation */
+			strcpy(suffixe,BAK_LOG_EXTENTION);
 		}
 
-		if (unlink(oldFileNameBuffer) == -1) {
+		if (unlikely(unlink(oldFileNameBuffer) == -1)) {
 			error = errno;
 			if (error != ENOENT) {
 				ERROR_MSG("unlink %s error %d (%m)", oldFileNameBuffer, error);
 			}
 		}
 
-		if (rename(fullFileName, oldFileNameBuffer) == -1) {
+		if (unlikely(rename(fullFileName, oldFileNameBuffer) == -1)) {
 			error = errno;
 			if (error != ENOENT) {
-				ERROR_MSG("unlink %s error %d (%m)", oldFileNameBuffer, error);
+				ERROR_MSG("rename %s => %s error %d (%m)", fullFileName,oldFileNameBuffer, error);
 			}
 		}
 
 	} else if (LOG_FILE_HISTO & LogStat) {
 		/*
 		 * naming is done according to the following pattern:
-		 * directory / processName_<tid>_<LogTag>_<time>.log
+		 * directory / processName_<pid>_<tid>_<LogTag>_<time>.log
 		 */
+		const pid_t pid = getpid();
 		time_t currentTime = time(NULL);
 		if (unlikely(((time_t) - 1) == currentTime)) {
 			currentTime = 0;
 		}
 		if (threadFileData->LogTag[0]) {
-			sprintf(fullFileName, "%s/%s_%u_%s_%u.log", directory, processName,tid,threadFileData->LogTag,currentTime);
+			sprintf(fullFileName, "%s/%s_%u_%u_%s_%u"LOG_EXTENSION, directory, processName,pid,tid,threadFileData->LogTag,currentTime);
 		} else {
-			sprintf(fullFileName, "%s/%s_%u_%u.log", directory, processName,tid,currentTime);
+			sprintf(fullFileName, "%s/%s_%u_%u_%u"LOG_EXTENSION, directory, processName,pid,tid,currentTime);
 		}
 	} else {
-		sprintf(fullFileName, "%s/%s_%u.log", directory, processName,tid);
+		sprintf(fullFileName, "%s/%s_%u"LOG_EXTENSION, directory, processName,tid);
 	}
 	DEBUG_VAR(fullFileName, "%s");
 	return error;
@@ -479,7 +541,7 @@ void vthreadFileLogger(int priority, const char *format, va_list optional_argume
 							} /* (LogStat & LOG_CONS) */
 						} /* (unlikely(written != n)) */
 
-						if (LOG_PRI(priority) <= LOG_ERR) {
+						if (unlikely((LogStat & LOG_FILE_SYNC_ON_ERRORS_ONLY) && (LOG_PRI(priority) <= LOG_ERR))) {
 							/* flush data if the log priority is "upper" or equal to error */
 							error = fdatasync(threadFileData->logFile);
 							if (error != 0) {
@@ -490,7 +552,7 @@ void vthreadFileLogger(int priority, const char *format, va_list optional_argume
 							if (error != 0) {
 							  ERROR_MSG("posix_fadvise to %s error %d (%m)",threadFileData->fullFileName,error);
 							}
-						} /* (LOG_PRI(priority) <= LOG_ERR) */
+						} /* (unlikely((LogStat & LOG_FILE_SYNC_ON_ERRORS_ONLY) && (LOG_PRI(priority) <= LOG_ERR))) */
 						threadFileData->fileSize += written;
 
 #ifdef FILESYSTEM_PAGE_CACHE_FLUSH_THRESHOLD

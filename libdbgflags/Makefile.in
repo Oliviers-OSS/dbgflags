@@ -36,7 +36,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 subdir = libdbgflags
-DIST_COMMON = $(library_include_HEADERS) $(noinst_HEADERS) \
+DIST_COMMON = $(libdbgflags_la_HEADERS) $(noinst_HEADERS) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
@@ -71,13 +71,14 @@ am__base_list = \
   sed '$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;s/\n/ /g' | \
   sed '$$!N;$$!N;$$!N;$$!N;s/\n/ /g'
 am__installdirs = "$(DESTDIR)$(libdir)" \
-	"$(DESTDIR)$(library_includedir)"
+	"$(DESTDIR)$(libdbgflags_ladir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libdbgflags_la_LIBADD =
 am__objects_1 =
 am_libdbgflags_la_OBJECTS = dbgFlagsUDS.lo utils.lo syslogex.lo \
 	consoleLogger.lo fileLogger.lo ctxLogger.lo goodies.lo \
-	dynamicLogger.lo threadFileLogger.lo $(am__objects_1)
+	dynamicLogger.lo threadFileLogger.lo printf_hook.lo \
+	$(am__objects_1)
 libdbgflags_la_OBJECTS = $(am_libdbgflags_la_OBJECTS)
 libdbgflags_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
@@ -97,7 +98,7 @@ LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	$(LDFLAGS) -o $@
 SOURCES = $(libdbgflags_la_SOURCES)
 DIST_SOURCES = $(libdbgflags_la_SOURCES)
-HEADERS = $(library_include_HEADERS) $(noinst_HEADERS)
+HEADERS = $(libdbgflags_la_HEADERS) $(noinst_HEADERS)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -226,13 +227,17 @@ lib_LTLIBRARIES = libdbgflags.la
 AM_CFLAGS = -D_GNU_SOURCE
 library_includedir = $(includedir)/dbgflags-${LIBDBGFLAGS_VERSION}
 libdbgflags_include_path = $(top_srcdir)/include/dbgflags-${LIBDBGFLAGS_VERSION}
-library_include_HEADERS = $(libdbgflags_include_path)/dbgflags.h $(libdbgflags_include_path)/syslogex.h $(libdbgflags_include_path)/debug_macros.h $(libdbgflags_include_path)/loggers.h $(libdbgflags_include_path)/ctxLogger.h $(libdbgflags_include_path)/loggers_streams $(libdbgflags_include_path)/goodies.h $(libdbgflags_include_path)/ModuleVersionInfo.h $(libdbgflags_include_path)/version.h
+libdbgflags_ladir = $(library_includedir)
+libdbgflags_la_HEADERS = $(libdbgflags_include_path)/dbgflags.h $(libdbgflags_include_path)/syslogex.h $(libdbgflags_include_path)/debug_macros.h $(libdbgflags_include_path)/loggers.h $(libdbgflags_include_path)/ctxLogger.h $(libdbgflags_include_path)/loggers_streams $(libdbgflags_include_path)/goodies.h $(libdbgflags_include_path)/ModuleVersionInfo.h $(libdbgflags_include_path)/version.h
 # tmp
 #library_include_HEADERS += dbgflags/dbgflags.h dbgflags/syslogex.h dbgflags/debug_macros.h dbgflags/loggers.h dbgflags/ctxLogger.h dbgflags/loggers_streams dbgflags/goodies.h dbgflags/ModuleVersionInfo.h dbgflags/version.h
 #libdbgflags_ladir = $(top_builddir)/include
 #libdbgflags_la_HEADERS = buffers.h debug.h LibrariesNameBuffer.h LibraryDebugFlagsEntry.h networkUtils.h ProcDebugFlagsUDSEntry.h protocol.h UdsManagement.h utils.h system.h ModuleVersionInfo.h
-noinst_HEADERS = buffers.h debug.h LibrariesNameBuffer.h LibraryDebugFlagsEntry.h networkUtils.h ProcDebugFlagsUDSEntry.h protocol.h UdsManagement.h UdsServerManagement.h utils.h system.h RemoteStatus.h filesUtils.h dynamicLogger.h configurationFile.h configurationFileData.h
-libdbgflags_la_SOURCES = dbgFlagsUDS.c utils.c syslogex.c consoleLogger.c fileLogger.c ctxLogger.c goodies.c dynamicLogger.c threadFileLogger.c $(noinst_HEADERS) libdbgflags.map
+noinst_HEADERS = buffers.h debug.h LibrariesNameBuffer.h LibraryDebugFlagsEntry.h networkUtils.h ProcDebugFlagsUDSEntry.h protocol.h UdsManagement.h UdsServerManagement.h utils.h system.h RemoteStatus.h filesUtils.h dynamicLogger.h configurationFile.h configurationFileData.h setFullFileName.h
+libdbgflags_la_SOURCES = dbgFlagsUDS.c utils.c syslogex.c \
+	consoleLogger.c fileLogger.c ctxLogger.c goodies.c \
+	dynamicLogger.c threadFileLogger.c printf_hook.c \
+	$(noinst_HEADERS) libdbgflags.map
 libdbgflags_la_LDFLAGS = -version-info \
 	${LIBDBGFLAGS_VERSION}:${LIBDBGFLAGS_REVISION}:${LIBDBGFLAGS_INTERFACE_AGE} \
 	-Wl,--version-script=$(top_srcdir)/libdbgflags/libdbgflags.map
@@ -316,6 +321,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dynamicLogger.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/fileLogger.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/goodies.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/printf_hook.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/syslogex.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/threadFileLogger.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/utils.Plo@am__quote@
@@ -346,26 +352,26 @@ mostlyclean-libtool:
 
 clean-libtool:
 	-rm -rf .libs _libs
-install-library_includeHEADERS: $(library_include_HEADERS)
+install-libdbgflags_laHEADERS: $(libdbgflags_la_HEADERS)
 	@$(NORMAL_INSTALL)
-	test -z "$(library_includedir)" || $(MKDIR_P) "$(DESTDIR)$(library_includedir)"
-	@list='$(library_include_HEADERS)'; test -n "$(library_includedir)" || list=; \
+	test -z "$(libdbgflags_ladir)" || $(MKDIR_P) "$(DESTDIR)$(libdbgflags_ladir)"
+	@list='$(libdbgflags_la_HEADERS)'; test -n "$(libdbgflags_ladir)" || list=; \
 	for p in $$list; do \
 	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
 	  echo "$$d$$p"; \
 	done | $(am__base_list) | \
 	while read files; do \
-	  echo " $(INSTALL_HEADER) $$files '$(DESTDIR)$(library_includedir)'"; \
-	  $(INSTALL_HEADER) $$files "$(DESTDIR)$(library_includedir)" || exit $$?; \
+	  echo " $(INSTALL_HEADER) $$files '$(DESTDIR)$(libdbgflags_ladir)'"; \
+	  $(INSTALL_HEADER) $$files "$(DESTDIR)$(libdbgflags_ladir)" || exit $$?; \
 	done
 
-uninstall-library_includeHEADERS:
+uninstall-libdbgflags_laHEADERS:
 	@$(NORMAL_UNINSTALL)
-	@list='$(library_include_HEADERS)'; test -n "$(library_includedir)" || list=; \
+	@list='$(libdbgflags_la_HEADERS)'; test -n "$(libdbgflags_ladir)" || list=; \
 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
 	test -n "$$files" || exit 0; \
-	echo " ( cd '$(DESTDIR)$(library_includedir)' && rm -f" $$files ")"; \
-	cd "$(DESTDIR)$(library_includedir)" && rm -f $$files
+	echo " ( cd '$(DESTDIR)$(libdbgflags_ladir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(libdbgflags_ladir)" && rm -f $$files
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \
@@ -453,7 +459,7 @@ check-am: all-am
 check: check-am
 all-am: Makefile $(LTLIBRARIES) $(HEADERS)
 installdirs:
-	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(library_includedir)"; do \
+	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(libdbgflags_ladir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -504,14 +510,15 @@ info: info-am
 
 info-am:
 
-install-data-am: install-library_includeHEADERS
+install-data-am: install-libdbgflags_laHEADERS
 
 install-dvi: install-dvi-am
 
 install-dvi-am:
 
 install-exec-am: install-libLTLIBRARIES
-
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) install-exec-hook
 install-html: install-html-am
 
 install-html-am:
@@ -550,27 +557,31 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-libLTLIBRARIES \
-	uninstall-library_includeHEADERS
+uninstall-am: uninstall-libLTLIBRARIES uninstall-libdbgflags_laHEADERS
 
-.MAKE: install-am install-strip
+.MAKE: install-am install-exec-am install-strip
 
 .PHONY: CTAGS GTAGS all all-am check check-am clean clean-generic \
 	clean-libLTLIBRARIES clean-libtool ctags distclean \
 	distclean-compile distclean-generic distclean-libtool \
 	distclean-tags distdir dvi dvi-am html html-am info info-am \
 	install install-am install-data install-data-am install-dvi \
-	install-dvi-am install-exec install-exec-am install-html \
-	install-html-am install-info install-info-am \
-	install-libLTLIBRARIES install-library_includeHEADERS \
+	install-dvi-am install-exec install-exec-am install-exec-hook \
+	install-html install-html-am install-info install-info-am \
+	install-libLTLIBRARIES install-libdbgflags_laHEADERS \
 	install-man install-pdf install-pdf-am install-ps \
 	install-ps-am install-strip installcheck installcheck-am \
 	installdirs maintainer-clean maintainer-clean-generic \
 	mostlyclean mostlyclean-compile mostlyclean-generic \
 	mostlyclean-libtool pdf pdf-am ps ps-am tags uninstall \
 	uninstall-am uninstall-libLTLIBRARIES \
-	uninstall-library_includeHEADERS
+	uninstall-libdbgflags_laHEADERS
 
+
+install-exec-hook:
+	test -L $(includedir)/dbgflags && /bin/rm $(includedir)/dbgflags &>/dev/null || true
+	mkdir -p $(includedir)/dbgflags-${LIBDBGFLAGS_VERSION}
+	$(LN_S) $(includedir)/dbgflags-${LIBDBGFLAGS_VERSION} $(includedir)/dbgflags
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

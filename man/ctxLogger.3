@@ -1,0 +1,92 @@
+.\" Written  Oct 2012 by Olivier Charloton (oliviers.open.source.softwares@gmail.com)
+.\" heavily based on the work of Steve Greenland (stevegr@neosoft.com) on syslog man.
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.TH CTXLOGGER 3 2012-10-06 "dbgflags" "Dbgflags Programmer's Manual"
+.SH NAME
+ctxLogInit ctxLogger vctxLogger ctxLogUnInit ctxLog dumpCtxLog \- special purpose logger to log 
+contextual information.
+.SH SYNOPSIS
+.B #include <dbgflags/ctxLogger.h>
+.sp
+.BI "int ctxLogInit(void);"
+.sp
+.BI "void ctxLogger(int " priority ", const char *" format ", ...); "
+.sp
+.BI "void vctxLogger(int " priority ", const char *" format ",va_list " optional_arguments ");"
+.sp
+.BI "void ctxLogUnInit(void);"
+.sp
+.BI "ctxLog(priority,format, ...);"
+.sp
+.BI "static inline void dumpCtxLog(void);"
+.br
+.SH DESCRIPTION
+During troubleshooting, you need sometimes information only when an event occurs else they are useless. 
+The ctxLogger try to provide a solution, to avoid to log megabytes of information and suffer of its runtime 
+associated footprint, they are stored in a limited window memory, managed as a circular buffer of lines, 
+that will be send to the defined logger only when the dumpCtxLog function will be called.
+
+.BR ctxLogInit()
+Initialize the context logger, its call is mandatory because it allocates the memory that will be used to store the messages.
+Currently the size of the memory is fixed at library's build time.
+
+.BR ctxLogger ()
+Add a new message to the in memory circular buffer.
+The
+.I priority
+argument is formed by ORing the
+.I facility
+and the 
+.I level
+values (explained below).  The remaining arguments
+are a 
+.IR format ,
+as in 
+.BR printf (3)
+and any arguments required by the 
+.IR format , 
+except that the two character sequence %m will be replaced by
+the error message string 
+.IR strerror ( errno ).
+A trailing newline is added when needed.
+
+The function
+.BR vctxLogger ()
+performs the same task as
+.BR ctxLogger ()
+with the difference that it takes a set of arguments which have
+been obtained using the
+.BR stdarg (3)
+variable argument list macros.
+
+The function
+.BR ctxLog () 
+is a macro that performs the same task as 
+.BR ctxLogger ()
+.
+
+.BR ctxLogUnInit ()
+Release all the previously allocated resources to the contextual logger. 
+
+.BR dumpCtxLog ()
+Send all the content of the circular buffer to the logger (defined by the LOGGER macro).
+ 

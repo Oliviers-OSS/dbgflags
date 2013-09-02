@@ -1,0 +1,61 @@
+.\" Written  Oct 2012 by Olivier Charloton (oliviers.open.source.softwares@gmail.com)
+.\" heavily based on the work of Steve Greenland (stevegr@neosoft.com) on syslog man.
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\" 
+.\" This manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.TH DYNAMICLOGGER 3 2012-10-06 "dbgflags" "Dbgflags Programmer's Manual"
+.SH NAME
+openLogger, openLoggerFromCmdLine, setLoggerConfiguration, dynamicLogger, vdynamicLogger, closeLogger,openLoggerFromCmdLineHelp, dynamicLoggerParseCmdLineElement
+\- special purpose logger to allows special purpose logger to allows definition of the logger to use at runtime.
+.SH SYNOPSIS
+.B #include <dbgflags/loggers.h>
+.sp 
+.BI "int openLogger(const dynamicLoggerConfiguration *" configuration ");"
+.sp
+.BI "int openLoggerFromCmdLine(dynamicLoggerConfiguration *" configuration ",unsigned int *" flags ");"
+.sp
+.BI "int setLoggerConfiguration(const dynamicLoggerConfiguration *" configuration ");"
+.sp
+.BI "void dynamicLogger(int " priority ", const char *" format ", ...);"
+.sp
+.BI "void vdynamicLogger(int " priority ", const char *" format ", va_list " optional_arguments ");"
+.sp
+.BI "void closeLogger(void);"
+.sp
+.BI "const char* openLoggerFromCmdLineHelp(void);"
+.sp
+.BI "int dynamicLoggerParseCmdLineElement(dynamicLoggerConfiguration *" configuration ",unsigned int *" flags ",const int " optc ", const char *" optarg ");"
+.br
+.SH DESCRIPTION
+.BR openLogger () 
+set the initial configuration of the dynamic logger. The parameter is a pointer to a dynamicLoggerConfiguration structure, defined in the dbgflags/loggers.h file as follow:
+.br
+.sp
+typedef struct dynamicLoggerConfiguration_ {
+    size_t size; /* size of the used dynamicLoggerConfiguration structure ( =sizeof(dynamicLoggerConfiguration)) */
+    const char *ident;
+    int logstat;
+    int logfac;
+    char directory[PATH_MAX];
+    size_t maxSizeInBytes;
+    time_t maxTimeInSeconds;
+    char logger[32];
+} dynamicLoggerConfiguration;
+
+

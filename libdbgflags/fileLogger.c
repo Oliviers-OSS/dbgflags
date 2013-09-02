@@ -162,6 +162,10 @@ void openLogFile(const char *ident, int logstat, int logfac) {
 	if (logfac != 0 && (logfac &~ LOG_FACMASK) == 0) {
 		LogFacility = logfac;
 	}
+
+	if (LogStat & LOG_NDELAY) {
+		createFile();
+	}
 }
 
 typedef struct cleanup_args_ {
@@ -332,7 +336,7 @@ void vfileLogger(int priority, const char *format, va_list optional_arguments) {
 			error = pthread_mutex_lock(&fileLock);
 			if (likely(EXIT_SUCCESS == error)) {
 
-				if (LogStat & LOG_PERROR) {
+				if (unlikely(LogStat & LOG_PERROR)) {
 					/* add the format argument to the header */
 					const size_t n = strlen(format);
 					const size_t size = bufsize + n + 1;
@@ -348,7 +352,7 @@ void vfileLogger(int priority, const char *format, va_list optional_arguments) {
 				} /* (LogStat & LOG_PERROR) */
 
 				/* file management */
-				if (LOG_FILE_DURATION & LogStat) {
+				if (unlikely(LOG_FILE_DURATION & LogStat)) {
 					const time_t currentTime = time(NULL);
 					const time_t elapsedTime = currentTime - startTime;
 					if (unlikely(elapsedTime >= maxDuration)) {
@@ -376,7 +380,7 @@ void vfileLogger(int priority, const char *format, va_list optional_arguments) {
 								}
 							} /* (LogStat & LOG_CONS) */
 
-							if (LOG_PRI(priority) <= LOG_ERR) {
+							if (unlikely((LogStat & LOG_FILE_SYNC_ON_ERRORS_ONLY) && (LOG_PRI(priority) <= LOG_ERR))) {
 								/* flush data if the log priority is "upper" or equal to error */
 								error = fdatasync(logFile);
 								if (error != 0) {
@@ -387,7 +391,7 @@ void vfileLogger(int priority, const char *format, va_list optional_arguments) {
 								if (error != 0) {
 								  ERROR_MSG("posix_fadvise to %s error %d (%m)",fullFileName,error);
 								}
-							} /* (LOG_PRI(priority) <= LOG_ERR) */
+							} /* (unlikely((LogStat & LOG_FILE_SYNC_ON_ERRORS_ONLY) && (LOG_PRI(priority) <= LOG_ERR))) */
 						} /* (unlikely(written != n)) */
 						fileSize += written;
 

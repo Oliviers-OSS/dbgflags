@@ -1,0 +1,85 @@
+.\" Written  Oct 2012 by Olivier Charloton (oliviers.open.source.softwares@gmail.com)
+.\" heavily based on the work of Steve Greenland (stevegr@neosoft.com) on syslog man.
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\" 
+.\" This manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.TH LOGPROC 1 2012-10-06 "dbgflags" "Dbgflags User's Manual"
+
+.SH NAME
+logproc \is a small software to start a program and redirects its output streams (stdout and/or stderr) to syslog.
+
+
+.SH SYNOPSIS
+.B logproc
+.RI [ options ]
+.br
+
+.SH DESCRIPTION
+This manual page explains the
+.B logproc
+program, part of the dbgflags library. It allows to redirect output streams to syslog, each one shares the same syslog's facility but has its one syslog's priority. 
+
+.SH OPTIONS
+.B
+.HP
+\fB\-f\fR, \fB\-\-facility=\fR<facility to use in syslog's messages>
+\fR 
+Valid facility names are: auth, authpriv (for security information of a sensitive nature), cron, daemon, ftp, kern, lpr, mail, news, security (deprecated synonym for auth), syslog, user, uucp, and local0 to local7, inclusive.
+For intended purposes of these facilities, see logger(1) and syslog(3).
+.HP
+\fB\-o\fR, \fB\-\-stdout=\fR<level to use for syslog's message coming from the process's stdout>
+.HP
+\fB\-e\fR, \fB\-\-stderr=\fR<level to use for syslog's message coming from the process's stderr>
+\fR 
+Valid level names are: alert, crit, debug, emerg, err, error (deprecated synonym for err), info, notice, panic (deprecated synonym for emerg), warning, warn (deprecated synonym for warning).
+For the priority order and intended purposes of these levels, see syslog(3).
+.HP
+\fB\-h\fR, \fB\-\-help\fR
+.HP
+\fB\-v\fR, \fB\-\-version\fR
+
+.SH EXAMPLES
+.B logproc -o notice -f user echo Hello World 
+\fR 
+Send an Hello World message to the syslog daemon, from the facility 
+.B user 
+with the level 
+.B notice
+.
+\fR 
+Remark: the result is the same than using the following command:
+logger -p user.notice Hello World
+.PP
+.B logproc -e warning tar tvz foo.tar
+\fR 
+The Error message produce by the tar program is sent to the syslog daemon.
+
+.SH AUTHOR
+Written by O. Charloton 
+
+.SH REPORTING BUGS
+Report bugs to <oliviers.open.source.softwares@gmail.com>
+
+.SH COPYRIGHT
+This is free software. You may redistribute copies of it under the terms of the GNU General Public License <http://www.gnu.org/licenses/gpl.html>. There is NO WARRANTY, to the extent permitted by law.
+
+.SH SEE ALSO
+.B
+syslog(3), logger(1), setlogmask(3), syslog.conf(5), syslogd(8)
+ 

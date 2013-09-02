@@ -1,3 +1,9 @@
+/*
+ * use readelf --string-dump=.modinfo <module's name>
+ * to display info stored, using this macro,
+ * in an ELF module file
+ */
+
 #ifndef _MODULE_VERSION_INFO_H_
 #define _MODULE_VERSION_INFO_H_
 

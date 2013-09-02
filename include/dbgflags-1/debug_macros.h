@@ -24,8 +24,11 @@
 #define LOGGER syslog
 #else
 #include <dbgflags/loggers.h>
-#define LOGGER consoleLogger 
+#define LOGGER consoleLogger
 #endif
+#else /* LOGGER */
+#include <dbgflags/loggers.h>
+//#define LOGGER consoleLogger
 #endif /* LOGGER */
 
 #define GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
@@ -46,7 +49,7 @@
 #if (GCC_VERSION > 42100) /* GCC 4.2.1 */
 #pragma GCC diagnotic push
 #pragma GCC diagnostic ignored "-Wno-variadic-macros"
-#else 
+#else
 #pragma GCC system_header /* oops ! just to disable the nasty warning "warning: anonymous variadic macros were introduced in C99" */
 #endif /* 4.2.1 */
 
@@ -178,8 +181,8 @@ static __inline void dumpMemory(const char *memoryName,const void *address, unsi
         const unsigned int remaining = limit-cursor;
         const unsigned int lineSize = MIN(nbBytesPerLines,remaining);
 
-        for(i=0;i<lineSize;i++) {            
-            hexaCursor += sprintf(hexaCursor,"%.2X ",*cursor);            
+        for(i=0;i<lineSize;i++) {
+            hexaCursor += sprintf(hexaCursor,"%.2X ",*cursor);
             if ((*cursor >= 0x20) && (*cursor<= 0x7A)) {
                 asciiCursor += sprintf(asciiCursor,"%c",*cursor);
             } else {
@@ -219,14 +222,14 @@ inline void DebugVar(const bool v,const char *name, const char *file, const unsi
 #define INFO_MSG(fmt,...)
 #define DEBUG_MSG(fmt,...)
 #define DEBUG_POSMSG(fmt,...)
-#define DEBUG_MARK 
+#define DEBUG_MARK
 #define DEBUG_VAR(x,f)
 #define DEBUG_VAR_BOOL(Var)
 #define DEBUG_DUMP_MEMORY(Var,Size)
 #define CTX_MSG(fmt,...)
 
 #ifdef __cplusplus
-#define INFO_STREAM            if (0) logInfo.getInstance() 
+#define INFO_STREAM            if (0) logInfo.getInstance()
 #define DEBUG_STREAM           if (0) logDebug.getInstance()
 #define CTX_STREAM             if (0) logContext.getInstance()
 #define DEBUG_CPP_VAR(x)

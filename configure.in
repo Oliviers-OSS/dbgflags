@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.57)
-AC_INIT(dbgflags,0.0.4,oliviers.open.source.softwares@gmail.com)
+AC_INIT(dbgflags,0.0.5,oliviers.open.source.softwares@gmail.com,dbgflags,https://github.com/Oliviers-OSS/dbgflags)
 AM_INIT_AUTOMAKE([dist-bzip2])
 LIBDBGFLAGS_VERSION=1
 LIBDBGFLAGS_REVISION=1
@@ -24,7 +24,7 @@ LT_INIT
 
 # Checks for libraries.
 AC_CHECK_LIB([pthread], [pthread_create])
-#AC_CHECK_LIB([rt], [main])
+AC_CHECK_LIB([rt], [clock_gettime])
 
 # Checks for header files.
 AC_HEADER_DIRENT
@@ -137,7 +137,7 @@ AC_FUNC_SELECT_ARGTYPES
 AC_FUNC_ERROR_AT_LINE
 AC_FUNC_LSTAT
 AC_FUNC_LSTAT_FOLLOWS_SLASHED_SYMLINK
-AC_CHECK_FUNCS([atexit gettimeofday localtime_r memmove mempcpy memset mkdir socket strcasecmp strncasecmp strrchr strstr strtol strtoul connect dup2 select strchr strerror clock_gettime fdatasync])
+AC_CHECK_FUNCS([atexit gettimeofday localtime_r memmove mempcpy memset mkdir socket strcasecmp strncasecmp strrchr strstr strtol strtoul connect dup2 select strchr strerror clock_gettime fdatasync register_printf_specifier])
 
 # extras subdirectory is not available (and useless) in the public open source version
 # extras//Makefile   
@@ -150,7 +150,8 @@ AC_CONFIG_FILES([Makefile
                  dbgflags.pc
                  libdbgflags/Makefile
                  zo/Makefile
-                 logproc/Makefile                 
+                 logproc/Makefile
+                 man/Makefile                 
                  tests/Makefile
                  tests/main/Makefile
                  tests/main_static/Makefile
@@ -277,8 +278,15 @@ AC_CONFIG_FILES([Makefile
                  tests/threads/threadfile/Makefile
                  tests/threads/threadfile/c/Makefile
                  tests/threads/threadfile/cpp/Makefile
+                 tests/threads/threadfile_async/Makefile
+                 tests/threads/threadfile_async/c/Makefile
+                 tests/threads/threadfile_async/cpp/Makefile
+                 tests/threads/threadfile_async_error/Makefile
+                 tests/threads/threadfile_async_error/c/Makefile
+                 tests/threads/threadfile_async_error/cpp/Makefile
                  tests/big_messages/Makefile
                  tests/big_messages/console/Makefile
                  tests/big_messages/file/Makefile
+                 tests/printf_extensions_tests/Makefile
                  ])
 AC_OUTPUT

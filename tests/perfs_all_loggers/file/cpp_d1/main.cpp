@@ -69,7 +69,7 @@ unsigned int function(const unsigned int a,const unsigned  int b) {
 int main(int argc, char *argv[]) {
   int error = EXIT_SUCCESS;
   unsigned int i;
-  unsigned int n = 10000;
+  unsigned int n = 100;
   volatile unsigned int r = 0;
   //struct rusage used;
   

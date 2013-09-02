@@ -8,6 +8,10 @@
 #ifndef _DEBUG_STREAM_H_
 #define	_DEBUG_STREAM_H_
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 
+#endif /* _GNU_SOURCE */
+
 #include <ostream>
 #include <sstream>
 #include <functional>
@@ -19,7 +23,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <pthread.h>
-
+#include <unistd.h>
 #include <sys/syscall.h>
 
 #ifndef DEBUG_EOL

@@ -10,7 +10,7 @@
 
 #ifdef	__cplusplus
 extern "C" {
-#endif
+#endif /* __cplusplus */
 
 #include <dbgflags/version.h>
 
@@ -24,7 +24,7 @@ unsigned int parseFlagsOptions(const char *flagsOptions); //WARNING: argument is
 
 #ifdef	__cplusplus
 } /* extern "C" */
-#endif
+#endif /* __cplusplus */
 
 #ifdef	__cplusplus
 
@@ -55,7 +55,6 @@ static inline unsigned int parseFlagsOptions(const std::vector<std::string> &fla
 }
 #endif /* DBGFLAGS_INTERFACE_VERSION >= 12 */
 
-} /* extern "C" */
 #endif /* __cplusplus */
 
 #endif	/* _GOODIES_H */

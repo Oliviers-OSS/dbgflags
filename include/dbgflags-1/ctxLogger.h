@@ -32,7 +32,16 @@ extern char *ctxLogMemoryBuffer;
 extern char *ctxLogWritePos;
 extern pthread_mutex_t ctxCursorLock;
 
+/**
+ *
+ * @return EXIT_SUCCESS in case of success, EINVAL if called twice and ENOMEM if unable to allocate the buffer
+ */
 int ctxLogInit(void);
+/**
+ *
+ * @param priority message priority level
+ * @param format
+ */
 void ctxLogger(int priority, const char *format, ...); /* not "inline" function to be able to have a fct ptr */
 void vctxLogger(int priority, const char *format,va_list optional_arguments);
 void ctxLogUnInit(void);

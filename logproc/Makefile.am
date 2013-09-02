@@ -3,8 +3,8 @@ VERSION = 1.0
 AUTOMAKE_OPTIONS = gnu
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir) -I$(top_builddir)/../include -I../libdbgflags
-#AM_CFLAGS=-DLOGGER=consoleLogger
 AM_CFLAGS = -D_GNU_SOURCE -DPROGRAM_NAME=$(PROGRAM) -DPROGRAM_VERSION=$(VERSION)
+#AM_CFLAGS +=-DLOGGER=consoleLogger
 
 bin_PROGRAMS = $(PROGRAM)
 logproc_SOURCES = main.c 

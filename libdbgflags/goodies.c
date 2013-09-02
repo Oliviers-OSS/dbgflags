@@ -15,7 +15,8 @@
 #include <dbgflags/debug_macros.h>
 
 int stringToSyslogLevel(const char *syslogLevel) {
-    int syslogLevelValue = -1;    
+    int syslogLevelValue = -1;
+    errno = EXIT_SUCCESS;
     if (isdigit(syslogLevel[0])) { /* 0x... (hexa value) ) 0.. (octal value or zero) 1 2 3 4 5 6 7 8 9 (decimal value) */
         char *endptr = NULL;
         syslogLevelValue = strtoul(syslogLevel, &endptr, 0);
@@ -57,6 +58,7 @@ int stringToSyslogLevel(const char *syslogLevel) {
 
 int stringToFacility(const char *facilityString) {
     int facility = -1;
+    errno = EXIT_SUCCESS;
     if (isdigit(facilityString[0])) {
       char *endptr = NULL;
       const int n = strtoul(facilityString,&endptr,0);
@@ -315,7 +317,7 @@ unsigned int parseFlagsOptions(const char *flagsOptions) {
 MODULE_NAME(goodies);
 MODULE_AUTHOR(Olivier Charloton);
 MODULE_VERSION(1.2);
-MODULE_FILE_VERSION(1.3);
+MODULE_FILE_VERSION(1.4);
 MODULE_DESCRIPTION(goodies functions);
 MODULE_COPYRIGHT(LGPL);
 
