@@ -1,0 +1,73 @@
+.\" Written  Oct 2012 by Olivier Charloton (oliviers.open.source.softwares@gmail.com)
+.TH ZO 1 2012-10-06 "dbgflags" "Dbgflags User's Manual"
+
+.SH NAME
+zo \program to set/get debugFlags'values of a process or one of it's loaded library and to manage its log level value.
+
+.SH SYNOPSIS
+.B zo
+.RI [ options ]
+.br
+
+.SH DESCRIPTION
+This manual page explains the
+.B zo
+program, part of the dbgflags library, which allows to list registered debug flags of modules, set or unset them and manage log level based on syslog ones.
+.PP
+Theses flags could be used to enable or disable part of a process or instructions like traces for examples. Each of them has an associated name to declare its meaning.
+
+.SH OPTIONS
+.B
+.HP
+\fB\-p\fR, \fB\-\-process=\fR<process's name>
+.HP
+\fB\-i\fR, \fB\-\-pid=\fR<process id>
+.HP
+\fB\-l\fR, \fB\-\-list[=\fR<module's name>]
+.HP
+\fB\-m\fR, \fB\-\-module=\fR<module's name>
+.HP
+\fB\-g\fR, \fB\-\-flags=\fR<new flags value>
+.HP
+\fB\-s\fR, \fB\-\-log\-level=\fR<new syslog's level threshold value>
+\fR 
+Valid level names are: alert, crit, debug, emerg, err, error (deprecated synonym for err), info, notice, panic (deprecated synonym for emerg), warning, warn (deprecated synonym for warning).
+For the priority order and intended purposes of these levels, see syslog(3).
+.HP
+\fB\-o\fR, \fB\-\-on\fR <list of bits to set on of the flags>
+.HP
+\fB\-f\fR, \fB\-\-off\fR <list of bits to unset on of the flags>
+.HP
+\fB\-h\fR, \fB\-\-help\fR
+.HP
+\fB\-v\fR, \fB\-\-version\fR
+
+.SH EXAMPLES
+.B zo -l 
+list all modules who have registered dbgflags
+.HP
+.B zo -i <PID>
+list all registered dbgflags of the process having a process ID equal to <PID>, and the name of its registered loaded libraries if any.
+.HP
+.B zo -i <PID> -g <new flags value> 
+set new flags value of the process having a process ID equal to <PID>
+.HP
+.B zo -i <PID> -m <module's name>  -g <new flags value> 
+set new flags value of the library <module's name> loaded into the process having a process ID equal to <PID>
+.HP
+.B zo -i <PID>  -o 1 2 3 -f 4 5 6
+set flags 1, 2, 3 on and 4, 5, 6 off, of the process having a process ID equal to <PID>
+
+.SH AUTHOR
+Written by O. Charloton 
+
+.SH REPORTING BUGS
+Report bugs to <oliviers.open.source.softwares@gmail.com>
+
+.SH COPYRIGHT
+This is free software. You may redistribute copies of it under the terms of the GNU General Public License <http://www.gnu.org/licenses/gpl.html>. There is NO WARRANTY, to the extent permitted by law.
+
+.SH SEE ALSO
+.B
+syslog(3), logger(1), setlogmask(3), syslog.conf(5), syslogd(8)
+ 

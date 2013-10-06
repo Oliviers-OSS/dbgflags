@@ -1,0 +1,283 @@
+.\" Written  Oct 2012 by Olivier Charloton (oliviers.open.source.softwares@gmail.com)
+.\" heavily based on the work of Steve Greenland (stevegr@neosoft.com) on syslog man.
+.\"
+.\" Permission is granted to make and distribute verbatim copies of this
+.\" manual provided the copyright notice and this permission notice are
+.\" preserved on all copies.
+.\"
+.\" Permission is granted to copy and distribute modified versions of this
+.\" manual under the conditions for verbatim copying, provided that the
+.\" entire resulting derived work is distributed under the terms of a
+.\" permission notice identical to this one.
+.\" 
+.\" Since the Linux kernel and libraries are constantly changing, this
+.\" manual page may be incorrect or out-of-date.  The author(s) assume no
+.\" responsibility for errors or omissions, or for damages resulting from
+.\" the use of the information contained herein.  The author(s) may not
+.\" have taken the same level of care in the production of this manual,
+.\" which is licensed free of charge, as they might when working
+.\" professionally.
+.\" 
+.\" Formatted or processed versions of this manual, if unaccompanied by
+.\" the source, must acknowledge the copyright and authors of this work.
+.TH SYSLOGEX 3 2012-10-06 "dbgflags" "Dbgflags Programmer's Manual"
+.SH NAME
+openlogex, closelogex, setlogmaskex, vsyslogex, syslogex, avsyslogex, asyslogex, syslogproc  \- send messages to the system logger.
+.SH SYNOPSIS
+.B #include <dbgflags/syslogex.h>
+.sp
+.BI "void openlogex(const char *" ident ", int " option ", int " facility ");"
+.br
+.BI "int setlogmaskex (int " pmask ");"
+.br
+.BI "void syslogex(int " priority ", const char *" format ", ...);"
+.br
+.BI "void asyslogex(int " priority ", const char *" format ", ...);"
+.br
+.BI "void closelogex(void);"
+.br
+.BI "int syslogproc(const char *" cmd ",char *" argv[] ",const int " option ",const int " facility ",int " stdOutLogLevel ",int " stdErrLogLevel ");"
+.sp
+.B #include <stdarg.h>
+.sp
+.BI "void vsyslogex(int " priority ", const char *" format ", va_list " ap ");"
+.br
+.BI "void avsyslogex(int " priority ", const char *" format ", va_list " ap ");"
+.br
+.SH DESCRIPTION
+.BR openlogex ()
+opens a connection to the system logger for a program.  The string pointed
+to by
+.I ident
+is prepended to every message, and is typically set to the program name.
+The
+.I option
+argument specifies flags which control the operation of
+.BR openlogex ()
+and subsequent calls to
+.BR syslogex ().
+The
+.I facility
+argument establishes a default to be used if
+none is specified in subsequent calls to
+.BR syslogex ().
+Values for
+.I option
+and
+.I facility
+are given below.  The use of 
+.BR openlogex ()
+is optional; it will automatically be called by
+.BR syslogex ()
+if necessary, in which case 
+.I ident
+will default to NULL.
+.sp
+.BR syslogex ()
+generates a log message, which will be distributed by 
+.BR syslogd (8).
+The
+.I priority
+argument is formed by ORing the
+.I facility
+and the 
+.I level
+values (explained below).  The remaining arguments
+are a 
+.IR format ,
+as in 
+.BR printf (3)
+and any arguments required by the 
+.IR format , 
+except that the two character sequence %m will be replaced by
+the error message string 
+.IR strerror ( errno ).
+A trailing newline is added when needed.
+
+The function
+.BR vsyslogex ()
+performs the same task as
+.BR syslogex ()
+with the difference that it takes a set of arguments which have
+been obtained using the
+.BR stdarg (3)
+variable argument list macros.
+
+.BR closelogex ()
+closes the descriptor being used to write to the system logger.  The use of
+.BR closelogex ()
+is optional.
+
+The function
+.BR asyslogex ()
+(and respectively
+.BR avsyslogex ()
+) performs the same task as
+.BR syslogex ()
+(and respectively
+.BR vsyslogex ()
+) but asynchronously.
+
+The function
+.BR syslogproc
+forks a child process and send its standard output and its standard error 
+output to the 
+.BR syslogd (8) 
+daemon using the specified options, facility and log levels. 
+
+.SH PARAMETERS
+This section lists the parameters used to set the values of 
+.IR option , " facility" ", and " priority 
+(sames as 
+.BR syslog(3)
+).
+.SS option
+The
+.I option
+argument to 
+.BR openlogex ()
+is an OR of any of these:
+.TP
+.B LOG_CONS
+Write directly to system console if there is an error while sending to
+system logger.
+.TP
+.B LOG_NDELAY
+Open the connection immediately (normally, the connection is opened when
+the first message is logged).
+.TP
+.B LOG_NOWAIT
+Don't wait for child processes that may have been created while logging
+the message.  (The GNU C library does not create a child process, so this
+option has no effect on Linux.)
+.TP
+.B LOG_ODELAY
+The converse of
+.B LOG_NDELAY ;
+opening of the connection is delayed until
+.BR syslogex ()
+is called.  (This is the default, and need not be specified.)
+.TP
+.B LOG_PERROR
+(Not in POSIX.1-2001.) Print to stderr as well.
+.TP
+.B LOG_PID
+Include PID with each message.
+.TP
+.B LOG_TID
+(dbgflags's extension) Include Thread's identity (TID) with each message.
+.TP
+.B LOG_RDTSC
+(dbgflags's extension) Log the number of clock cycles, since the CPU was powered up or reset, with each message. 
+Warning: this value is different between every core and CPU, when running on more then one, use the LOG_CLOCK instead.
+.TP 
+.B LOG_LEVEL
+(dbgflags's extension) Log the message level as a string with each message.
+.TP
+.B LOG_CLOCK
+(dbgflags's extension) Log a time, that represents monotonic time since some unspecified starting point, with each message.
+
+.SS facility 
+The 
+.I facility
+argument is used to specify what type of program is logging the message.
+This lets the configuration file specify that messages from different
+facilities will be handled differently.
+.TP
+.B LOG_AUTH
+security/authorization messages (DEPRECATED Use 
+.B LOG_AUTHPRIV 
+instead)
+.TP
+.B LOG_AUTHPRIV
+security/authorization messages (private) 
+.TP
+.B LOG_CRON
+clock daemon 
+.RB ( cron " and " at )
+.TP
+.B LOG_DAEMON
+system daemons without separate facility value
+.TP
+.B LOG_FTP
+ftp daemon
+.TP
+.B LOG_KERN
+kernel messages
+.TP
+.BR LOG_LOCAL0 " through " LOG_LOCAL7
+reserved for local use
+.TP
+.B LOG_LPR
+line printer subsystem
+.TP
+.B LOG_MAIL
+mail subsystem
+.TP
+.B LOG_NEWS
+USENET news subsystem
+.TP
+.B LOG_SYSLOG
+messages generated internally by
+.B syslogd 
+.TP
+.BR LOG_USER " (default)"
+generic user-level messages 
+.TP
+.B LOG_UUCP
+UUCP subsystem
+
+.SS level
+This determines the importance of the message.  The levels are, in order
+of decreasing importance:
+.TP
+.B LOG_EMERG
+system is unusable
+.TP
+.B LOG_ALERT
+action must be taken immediately
+.TP
+.B LOG_CRIT
+critical conditions
+.TP
+.B LOG_ERR
+error conditions
+.TP
+.B LOG_WARNING
+warning conditions
+.TP
+.B LOG_NOTICE
+normal, but significant, condition
+.TP
+.B LOG_INFO
+informational message
+.TP
+.B LOG_DEBUG
+debug-level message
+.LP
+The function
+.BR setlogmaskex (3)
+can be used to restrict logging to specified levels only.
+.SH NOTES
+The parameter
+.I ident
+in the call of
+.BR openlogex ()
+is stored as-is. Thus, if the string it points to
+is changed,
+.BR syslogex ()
+may start prepending the changed string, and if the string
+it points to ceases to exist, the results are undefined.
+Use a string constant.
+.LP
+Never pass a string with user-supplied data as a format, use the folloing instead:
+.RS
+syslogex(priority, "%s", string);
+
+.SH "SEE ALSO"
+.BR logger (1),
+.BR syslog (3),
+.BR setlogmask (3),
+.BR syslog.conf (5),
+.BR syslogd (8)
+
